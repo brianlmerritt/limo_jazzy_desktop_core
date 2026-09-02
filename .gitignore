@@ -1,0 +1,23 @@
+# ROS / colcon
+build/
+install/
+log/
+
+# Host-specific container identity
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Temporary files
+*.swp
+*.tmp

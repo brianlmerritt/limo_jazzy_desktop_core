@@ -1,0 +1,5 @@
+repositories:
+  limo_ros2:
+    type: git
+    url: https://github.com/anshikasinha8/limo_ros2.git
+    version: a481d8814e3b4a89908b08b69a4798924b0c8067
