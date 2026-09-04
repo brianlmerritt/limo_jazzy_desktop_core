@@ -1,26 +1,35 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Scope and Layout
 
-This repository defines the ROS 2 Jazzy development environment for an AgileX LIMO on NVIDIA Jetson. `Dockerfile` supplies the Ubuntu Noble/ROS toolchain, while `compose.yaml` runs the long-lived `dev` container and mounts the repository at `/workspace`. `.devcontainer/` supports the VS Code Dev Containers workflow. Put ROS packages under `src/`; keep robot, camera, LiDAR, and network settings in the matching `config/` subdirectories. Record hardware notes in `docs/hardware/`, architecture decisions in `docs/decisions/`, and host-state captures in `host/snapshots/`. Do not commit generated `build/`, `install/`, or `log/` trees.
+This repository owns the reproducible development environment and platform configuration for an AgileX LIMO on a Jetson Orin Nano 8 GB. The host is newly flashed Ubuntu 24.04; keep it as clean as possible.
 
-## Build, Test, and Development Commands
+- `Dockerfile`, `compose.yaml`, and `.devcontainer/` define container workflows.
+- `src/limo_ros2/` is the LIMO ROS 2 fork, maintained as a Git submodule. Add future camera, LiDAR, and other upstream repositories as sibling submodules under `src/`.
+- `config/{robot,cameras,lidar,networking}/` holds tracked device and runtime configuration.
+- `scripts/` contains repeatable setup, build, and host-configuration scripts.
+- `docs/hardware/` documents wiring, drivers, device names, and manual host steps; `docs/decisions/` records design choices.
+- `host/snapshots/` stores useful diagnostic captures. Never commit generated `build/`, `install/`, or `log/` trees.
 
-- `./scripts/configure-host-env.sh` creates the ignored `.env` file with the current user's UID/GID for container permissions.
-- `docker compose build dev` builds the ROS 2 Jazzy desktop image.
-- `docker compose up -d dev` starts the workspace container; use `docker compose exec dev bash` to enter it.
-- `./scripts/build.sh` runs `colcon build --symlink-install`; execute it inside the container.
-- `./scripts/host-check.sh` reports Jetson, Docker, USB, disk, and network details for diagnostics.
-- `colcon test && colcon test-result --verbose` runs package tests and reports failures.
+## Environment and Host Policy
 
-## Coding Style & Naming Conventions
+Put Python, ROS 2, ROS packages, build tools, and application dependencies in Docker. Do not install them on Ubuntu 24.04 merely for convenience. Only hardware access, Docker/JetPack support, and unavoidable kernel/device-driver changes belong on the host. Every host modification must have an idempotent script where feasible and accompanying documentation describing purpose, commands, affected files, verification, and rollback. Do not assume stable `/dev/ttyUSB*` names; capture identifiers and define persistent rules under repository configuration before relying on them.
 
-Shell scripts must use Bash, two-space indentation, quoted variables, and strict error handling (`set -euo pipefail`) unless diagnostic commands deliberately tolerate failure. Name scripts with lowercase kebab-case. Follow standard ROS 2 conventions in packages: lowercase `snake_case` package, node, topic, and parameter names; four-space Python indentation; and existing ament lint rules (`ament_flake8`, `ament_pep257`, `ament_lint_cmake`, and `ament_xmllint`). Keep YAML indentation at two spaces.
+## Development Commands
 
-## Testing Guidelines
+- `./scripts/configure-host-env.sh`: create the ignored UID/GID `.env` file.
+- `docker compose build dev`: build the selected development image.
+- `docker compose up -d dev && docker compose exec dev bash`: start and enter it.
+- `./scripts/build.sh`: run `colcon build --symlink-install` inside the container.
+- `colcon test && colcon test-result --verbose`: run and inspect package tests.
+- `./scripts/host-check.sh`: capture host, Jetson, Docker, USB, and network state.
 
-Add tests within each ROS package and register them through its `CMakeLists.txt` or `setup.py`. Name Python tests `test_*.py`. Before submitting, build from a sourced Jazzy environment, run `colcon test`, and inspect `colcon test-result --verbose`. No repository-wide coverage threshold is currently defined; new behavior should include focused tests where practical.
+The current validation target is the Humble fork in an Ubuntu 22.04 container. Jazzy migration belongs on a later `jazzy` branch with an Ubuntu 24.04/ROS 2 Jazzy image.
 
-## Commit & Pull Request Guidelines
+## Style and Testing
 
-History is currently sparse, so use concise, imperative commit subjects such as `Add camera configuration`. Keep each commit focused. Pull requests should explain the change and validation performed, link relevant issues, and call out hardware, networking, power, or container assumptions. Include logs for build/runtime fixes and screenshots only for visual tooling changes. Never commit `.env`, credentials, device secrets, or generated colcon output.
+Use Bash with quoted variables, two-space indentation, kebab-case filenames, and `set -euo pipefail` unless a diagnostic script intentionally tolerates failures. Use standard ROS naming (`snake_case` packages, nodes, topics, and parameters), four-space Python indentation, and package ament linters. Add focused tests to each package and register them in `CMakeLists.txt` or `setup.py`; name Python tests `test_*.py`.
+
+## Git Ownership and Reviews
+
+The repository owner manages all Git mutations: staging, commits, pulls, pushes, branch creation/switching, merges, rebases, and submodule registration or updates. Agents may inspect `git status`, history, and diffs, but must not perform those mutations. Keep proposed changes focused. In handoff notes, list changed files, validation performed, hardware assumptions, and any manual or safety-sensitive steps. Never commit `.env`, credentials, or generated artifacts.
