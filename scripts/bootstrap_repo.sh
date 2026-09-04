@@ -8,7 +8,7 @@ if [[ -z "$ROOT" || "$ROOT" != "$PWD" ]]; then
     exit 1
 fi
 
-echo "Creating LIMO Jazzy Desktop Core structure in:"
+echo "Creating LIMO Humble Desktop Core structure in:"
 echo "$ROOT"
 
 mkdir -p \
@@ -33,9 +33,9 @@ touch \
     host/snapshots/.gitkeep
 
 cat > Dockerfile <<'EOF'
-FROM ros:jazzy-ros-base-noble
+FROM ros:humble-ros-base-jammy
 
-ARG ROS_DISTRO=jazzy
+ARG ROS_DISTRO=humble
 ARG DEV_USER
 ARG DEV_UID
 ARG DEV_GID
@@ -44,7 +44,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ros-jazzy-desktop-full \
+        ros-humble-desktop \
         ros-dev-tools \
         python3-vcstool \
         python3-colcon-common-extensions \
@@ -85,6 +85,8 @@ EOF
 cat > compose.yaml <<'EOF'
 services:
   dev:
+    container_name: limo_humble
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -93,9 +95,13 @@ services:
         DEV_UID: ${DEV_UID}
         DEV_GID: ${DEV_GID}
 
-    image: limo-jazzy-desktop-core:dev
+    image: limo-humble-desktop-core:dev
 
     network_mode: host
+    runtime: nvidia
+
+    group_add:
+      - dialout
 
     working_dir: /workspace
 
@@ -111,7 +117,7 @@ EOF
 
 cat > .devcontainer/devcontainer.json <<'EOF'
 {
-    "name": "LIMO Jazzy Desktop Core",
+    "name": "LIMO Humble Desktop Core",
     "dockerComposeFile": "../compose.yaml",
     "service": "dev",
     "workspaceFolder": "/workspace",
@@ -205,7 +211,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 
 cd "${ROOT}"
 
@@ -257,15 +263,15 @@ ip -brief address 2>/dev/null || true
 EOF
 
 cat > README.md <<'EOF'
-# LIMO Jazzy Desktop Core
+# LIMO Desktop Core
 
-Reproducible ROS 2 Jazzy development environment and core platform
+Reproducible ROS 2 Humble development environment and core platform
 configuration for the AgileX LIMO running on NVIDIA Jetson Orin Nano.
 
 ## Goals
 
 - Ubuntu 24.04 / JetPack host
-- ROS 2 Jazzy Desktop Full inside Docker
+- ROS 2 Humble Desktop in an Ubuntu 22.04 container
 - Reproducible external ROS dependencies
 - VS Code Remote SSH + Dev Containers workflow
 - Multi-camera perception

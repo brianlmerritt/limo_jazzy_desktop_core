@@ -12,12 +12,13 @@ Use this checklist to validate the existing Humble fork first, then migrate it t
 - [ ] Run `scripts/host-check.sh` and save a dated baseline under `host/snapshots/`.
 - [ ] Record JetPack/L4T, kernel, Docker, NVIDIA runtime, architecture, and power configuration.
 - [ ] Inventory CAN, serial, USB, Ethernet, cameras, and LiDAR without changing drivers or device names.
+- [ ] Power up the LIMO chassis, not only the Jetson, before running serial-device tests.
 - [ ] Document current permissions/groups and access to required devices.
 - [ ] Add scripts and rollback notes for every unavoidable host driver, udev, group, or device-name change.
 
 ### Ubuntu 22.04 / ROS 2 Humble Container
 
-- [ ] Create a Humble development Dockerfile or clearly selectable Compose target based on Ubuntu 22.04.
+- [x] Create a Humble development Dockerfile or clearly selectable Compose target based on Ubuntu 22.04.
 - [ ] Pass through only the required host devices, networking, display, and NVIDIA runtime capabilities.
 - [ ] Install ROS 2, Python, colcon, rosdep, build tools, and ROS dependencies in the image—not on the host.
 - [ ] Pin or document package and upstream source versions for reproducibility.

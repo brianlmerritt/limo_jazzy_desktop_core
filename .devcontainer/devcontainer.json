@@ -1,5 +1,5 @@
 {
-    "name": "LIMO Jazzy Desktop Core",
+    "name": "LIMO Humble Desktop Core",
     "dockerComposeFile": "../compose.yaml",
     "service": "dev",
     "workspaceFolder": "/workspace",

@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://limo.local/schemas/config.schema.json",
+  "title": "LIMO host and workspace configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "platform",
+    "host",
+    "devices",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "container"],
+      "properties": {
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["distribution", "release", "architecture", "l4t_required"],
+          "properties": {
+            "distribution": {
+              "const": "ubuntu"
+            },
+            "release": {
+              "type": "string",
+              "pattern": "^[0-9]{2}\\.[0-9]{2}$"
+            },
+            "architecture": {
+              "type": "string",
+              "minLength": 1
+            },
+            "l4t_required": {
+              "type": "boolean"
+            }
+          }
+        },
+        "container": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["distribution", "release", "ros_distribution", "compose_service"],
+          "properties": {
+            "distribution": {
+              "const": "ubuntu"
+            },
+            "release": {
+              "type": "string",
+              "pattern": "^[0-9]{2}\\.[0-9]{2}$"
+            },
+            "ros_distribution": {
+              "type": "string",
+              "minLength": 1
+            },
+            "compose_service": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]*$"
+            }
+          }
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_commands",
+        "required_packages",
+        "required_kernel_modules",
+        "required_groups",
+        "docker"
+      ],
+      "properties": {
+        "required_commands": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
+          }
+        },
+        "required_groups": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z_][a-z0-9_-]*$"
+          }
+        },
+        "required_packages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.+-]*$"
+          }
+        },
+        "required_kernel_modules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          }
+        },
+        "docker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nvidia_runtime_required"],
+          "properties": {
+            "nvidia_runtime_required": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "devices": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/device"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    }
+  },
+  "$defs": {
+    "devicePath": {
+      "type": "string",
+      "pattern": "^/dev/[A-Za-z0-9._/-]+$"
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "required",
+        "preferred_path",
+        "accepted_paths",
+        "ros_parameter"
+      ],
+      "properties": {
+        "type": {
+          "enum": ["serial", "can", "usb", "network"]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "preferred_path": {
+          "$ref": "#/$defs/devicePath"
+        },
+        "container_path": {
+          "$ref": "#/$defs/devicePath"
+        },
+        "baud_rate": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4000000
+        },
+        "accepted_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "kind"],
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/devicePath"
+              },
+              "kind": {
+                "enum": ["alias", "native", "upstream_default", "fallback"]
+              }
+            }
+          }
+        },
+        "ros_parameter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "value_style"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "value_style": {
+              "enum": ["basename", "path"]
+            }
+          }
+        },
+        "alias_setup": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "alias_path",
+            "rule_source",
+            "rule_target",
+            "match",
+            "reason"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "alias_path": {
+              "$ref": "#/$defs/devicePath"
+            },
+            "rule_source": {
+              "type": "string",
+              "pattern": "^config/[A-Za-z0-9._/-]+\\.rules$"
+            },
+            "rule_target": {
+              "type": "string",
+              "pattern": "^/etc/udev/rules\\.d/[A-Za-z0-9._-]+\\.rules$"
+            },
+            "match": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kernel", "parent_kernel"],
+              "properties": {
+                "kernel": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "parent_kernel": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              }
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "availability_note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path", "url", "branch", "revision", "required"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^src/[A-Za-z0-9._/-]+$"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://[^ ]+\\.git$"
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

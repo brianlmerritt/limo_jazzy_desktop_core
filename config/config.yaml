@@ -1,0 +1,61 @@
+schema_version: 1
+
+platform:
+  host:
+    distribution: ubuntu
+    release: "24.04"
+    architecture: aarch64
+    l4t_required: true
+  container:
+    distribution: ubuntu
+    release: "22.04"
+    ros_distribution: humble
+    compose_service: dev
+
+host:
+  required_commands:
+    - docker
+    - git
+  required_packages: []
+  required_kernel_modules: []
+  required_groups:
+    - docker
+    - dialout
+  docker:
+    nvidia_runtime_required: true
+
+devices:
+  limo_base:
+    type: serial
+    required: true
+    preferred_path: /dev/ttylimo
+    container_path: /dev/ttylimo
+    baud_rate: 460800
+    accepted_paths:
+      - path: /dev/ttylimo
+        kind: alias
+      - path: /dev/ttyTHS1
+        kind: native
+      - path: /dev/ttyUSB1
+        kind: upstream_default
+    ros_parameter:
+      name: port_name
+      value_style: basename
+    alias_setup:
+      enabled: true
+      alias_path: /dev/ttylimo
+      rule_source: config/robot/99-limo-serial.rules
+      rule_target: /etc/udev/rules.d/99-limo-serial.rules
+      match:
+        kernel: ttyTHS1
+        parent_kernel: 3100000.serial
+      reason: Preserve the ttylimo name used by existing LIMO software for the verified Orin Nano UART.
+    availability_note: Power up the LIMO chassis, not only the Jetson, before device checks.
+
+sources:
+  - name: limo_ros2
+    path: src/limo_ros2
+    url: https://github.com/brianlmerritt/limo_ros2.git
+    branch: humble
+    revision: dcc5a8637f83236ed6778af86ad826e46a20cd92
+    required: true

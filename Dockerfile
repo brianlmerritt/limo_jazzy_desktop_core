@@ -1,6 +1,6 @@
-FROM ros:jazzy-ros-base-noble
+FROM ros:humble-ros-base-jammy
 
-ARG ROS_DISTRO=jazzy
+ARG ROS_DISTRO=humble
 ARG DEV_USER
 ARG DEV_UID
 ARG DEV_GID
@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ros-jazzy-desktop-full \
+        ros-humble-desktop \
         ros-dev-tools \
         python3-vcstool \
         python3-colcon-common-extensions \

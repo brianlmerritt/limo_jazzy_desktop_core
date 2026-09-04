@@ -1,0 +1,2 @@
+# AgileX LIMO base UART on the Jetson Orin Nano; retain the alias used by LIMO software.
+KERNEL=="ttyTHS1", KERNELS=="3100000.serial", GROUP="dialout", MODE="0660", SYMLINK+="ttylimo"

@@ -1,12 +1,13 @@
-# LIMO Jazzy Desktop Core
+# LIMO Desktop Core
 
-Reproducible ROS 2 Jazzy development environment and core platform
-configuration for the AgileX LIMO running on NVIDIA Jetson Orin Nano.
+Reproducible ROS 2 development environment and core platform configuration for
+the AgileX LIMO running on NVIDIA Jetson Orin Nano. The current baseline uses
+ROS 2 Humble in Ubuntu 22.04; Jazzy migration follows on a later branch.
 
 ## Goals
 
 - Ubuntu 24.04 / JetPack host
-- ROS 2 Jazzy Desktop Full inside Docker
+- ROS 2 Humble Desktop in an Ubuntu 22.04 container
 - Reproducible external ROS dependencies
 - VS Code Remote SSH + Dev Containers workflow
 - Multi-camera perception
@@ -22,6 +23,8 @@ Motion testing is not yet enabled.
 The Jetson power wiring is still being completed. The Jetson uses a
 separate 12 V battery from the LIMO chassis supply.
 
+The LIMO chassis—not only the Jetson—must be powered before serial-device tests.
+
 ## Repository layout
 
 ```text
@@ -35,3 +38,39 @@ separate 12 V battery from the LIMO chassis supply.
 ├── host/
 ├── scripts/
 └── src/
+```
+
+## Central configuration checks
+
+The expected Ubuntu host, Humble container, LIMO serial paths, and source
+submodules are declared in `config/config.yaml` and validated inside Docker:
+
+```bash
+./scripts/setup.sh validate
+./scripts/setup.sh check
+```
+
+The checks accept the preferred `/dev/ttylimo` alias, native Jetson
+`/dev/ttyTHS1`, and the AgileX `/dev/ttyUSB1` default. Configuration checks are
+read-only and do not require a host Python virtual environment. The separate
+`scripts/configure-limo-udev.sh` command explicitly installs or removes the
+tracked alias rule. See `docs/hardware/central-configuration.md` for the full
+workflow and safety boundaries.
+
+On the verified Orin Nano hardware, Compose passes only `/dev/ttyTHS1` into the
+development container and exposes it there as both `ttyTHS1` and `ttylimo`.
+It exports `LIMO_SERIAL_PORT=/dev/ttylimo` and `LIMO_SERIAL_BAUD=460800`; the
+standalone `limo_base` package understands those variables without reading this
+repository's central configuration.
+
+Generate the ignored environment file before using Compose, then build the base
+driver and its dependencies inside the container:
+
+```bash
+./scripts/configure-host-env.sh
+docker compose up -d dev
+docker compose exec dev ./scripts/build.sh --packages-up-to limo_base
+```
+
+The environment is present in Dev Container shells and normal Compose commands.
+An explicit ROS `port_name` or `baud_rate` parameter still takes precedence.

@@ -1,6 +1,6 @@
 services:
   dev:
-    container_name: limo_jazzy
+    container_name: limo_humble
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,9 +9,21 @@ services:
         DEV_UID: ${DEV_UID}
         DEV_GID: ${DEV_GID}
 
-    image: limo-jazzy-desktop-core:dev
+    image: limo-humble-desktop-core:dev
 
     network_mode: host
+    runtime: nvidia
+
+    group_add:
+      - dialout
+
+    environment:
+      LIMO_SERIAL_PORT: ${LIMO_SERIAL_PORT:-/dev/ttylimo}
+      LIMO_SERIAL_BAUD: ${LIMO_SERIAL_BAUD:-460800}
+
+    devices:
+      - ${LIMO_SERIAL_HOST_DEVICE:-/dev/ttyTHS1}:/dev/ttyTHS1
+      - ${LIMO_SERIAL_HOST_DEVICE:-/dev/ttyTHS1}:${LIMO_SERIAL_PORT:-/dev/ttylimo}
 
     working_dir: /workspace
 
@@ -23,3 +35,28 @@ services:
     init: true
 
     command: sleep infinity
+
+  configurator:
+    build:
+      context: ./tools/configurator
+      dockerfile: Dockerfile
+
+    image: limo-configurator:dev
+
+    working_dir: /workspace
+
+    volumes:
+      - .:/workspace:ro
+      - /dev:/host/dev:ro
+      - /etc/os-release:/host/etc/os-release:ro
+
+    command:
+      - check
+      - --config
+      - /workspace/config/config.yaml
+      - --schema
+      - /workspace/config/config.schema.json
+      - --workspace
+      - /workspace
+      - --device-root
+      - /host/dev
