@@ -27,6 +27,8 @@ For an externally maintained repository that should not be changed, prefer a sib
 
 ## Development Commands
 
+- Keep `ROS2_INSTRUCTIONS.md` synchronized whenever container startup, build,
+  passive-check, or ROS bringup commands change.
 - `./scripts/configure-host-env.sh`: create the ignored UID/GID `.env` file.
 - `docker compose build dev`: build the selected development image.
 - `docker compose up -d dev && docker compose exec dev bash`: start and enter it.

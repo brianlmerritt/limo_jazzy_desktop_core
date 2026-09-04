@@ -35,6 +35,8 @@ Use this checklist to validate the existing Humble fork first, then migrate it t
 
 ### Bringup and Robot Validation
 
+- [x] Add and verify passive `limo_base` startup with telemetry but no commanded-mode frame or `/cmd_vel` subscription.
+- [x] Bring up `limo_base` explicitly in commanded mode and verify the command path with one all-zero `Twist`; no nonzero command issued.
 - [ ] Review packages, launch files, parameters, URDF, topic names, frames, and hardware interfaces.
 - [ ] Establish persistent device identification before changing launch/config files.
 - [ ] Verify bringup without enabling motion; inspect nodes, topics, services, TF, and diagnostics.

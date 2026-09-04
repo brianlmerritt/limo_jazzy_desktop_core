@@ -14,6 +14,7 @@ def device_config() -> dict:
                 "preferred_path": "/dev/ttylimo",
                 "container_path": "/dev/ttylimo",
                 "baud_rate": 460800,
+                "startup_mode": "passive",
                 "accepted_paths": [
                     {"path": "/dev/ttylimo", "kind": "alias"},
                     {"path": "/dev/ttyTHS1", "kind": "native"},
@@ -53,6 +54,7 @@ class DeviceChecksTest(unittest.TestCase):
         messages = [message for _, message in report.items]
         self.assertTrue(any("port_name=ttylimo" in message for message in messages))
         self.assertTrue(any("LIMO_SERIAL_BAUD=460800" in message for message in messages))
+        self.assertTrue(any("LIMO_STARTUP_MODE=passive" in message for message in messages))
         self.assertTrue(any("preferred alias" in message for message in messages))
 
     def test_alias_is_preferred_when_both_paths_exist(self) -> None:

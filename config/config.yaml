@@ -31,6 +31,7 @@ devices:
     preferred_path: /dev/ttylimo
     container_path: /dev/ttylimo
     baud_rate: 460800
+    startup_mode: passive
     accepted_paths:
       - path: /dev/ttylimo
         kind: alias

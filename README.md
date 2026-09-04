@@ -4,6 +4,9 @@ Reproducible ROS 2 development environment and core platform configuration for
 the AgileX LIMO running on NVIDIA Jetson Orin Nano. The current baseline uses
 ROS 2 Humble in Ubuntu 22.04; Jazzy migration follows on a later branch.
 
+See `ROS2_INSTRUCTIONS.md` for the current container, build, passive check, and
+explicit commanded bringup commands.
+
 ## Goals
 
 - Ubuntu 24.04 / JetPack host
@@ -18,7 +21,9 @@ ROS 2 Humble in Ubuntu 22.04; Jazzy migration follows on a later branch.
 
 ## Current safety state
 
-Motion testing is not yet enabled.
+Nonzero motion testing has not yet been performed. Commanded mode is available
+only through the opt-in `limo-base` service and has been checked with an
+all-zero velocity command while the chassis was safely supported.
 
 The Jetson power wiring is still being completed. The Jetson uses a
 separate 12 V battery from the LIMO chassis supply.
@@ -62,6 +67,13 @@ development container and exposes it there as both `ttyTHS1` and `ttylimo`.
 It exports `LIMO_SERIAL_PORT=/dev/ttylimo` and `LIMO_SERIAL_BAUD=460800`; the
 standalone `limo_base` package understands those variables without reading this
 repository's central configuration.
+
+The framework also exports `LIMO_STARTUP_MODE=passive`. Passive mode receives
+and publishes chassis telemetry without enabling commanded mode or subscribing
+to `/cmd_vel`. Use `./scripts/check-limo-system.sh` inside the container for the
+non-motion hardware check. Commanded operation must be selected explicitly.
+The opt-in `limo-base` service under the Compose `robot` profile provides
+lifecycle-managed commanded bringup when motion control is intended.
 
 Generate the ignored environment file before using Compose, then build the base
 driver and its dependencies inside the container:

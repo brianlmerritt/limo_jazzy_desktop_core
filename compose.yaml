@@ -12,6 +12,7 @@ services:
     image: limo-humble-desktop-core:dev
 
     network_mode: host
+    ipc: host
     runtime: nvidia
 
     group_add:
@@ -20,6 +21,7 @@ services:
     environment:
       LIMO_SERIAL_PORT: ${LIMO_SERIAL_PORT:-/dev/ttylimo}
       LIMO_SERIAL_BAUD: ${LIMO_SERIAL_BAUD:-460800}
+      LIMO_STARTUP_MODE: ${LIMO_STARTUP_MODE:-passive}
 
     devices:
       - ${LIMO_SERIAL_HOST_DEVICE:-/dev/ttyTHS1}:/dev/ttyTHS1
@@ -35,6 +37,26 @@ services:
     init: true
 
     command: sleep infinity
+
+  limo-base:
+    extends:
+      service: dev
+
+    container_name: limo_base
+
+    profiles:
+      - robot
+
+    environment:
+      LIMO_STARTUP_MODE: commanded
+
+    stdin_open: false
+    tty: false
+    restart: "no"
+
+    command:
+      - ./scripts/run-limo-base.sh
+      - commanded
 
   configurator:
     build:

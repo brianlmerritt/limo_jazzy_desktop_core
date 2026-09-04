@@ -45,6 +45,33 @@ development container as both `/dev/ttyTHS1` and `/dev/ttylimo`, so the native
 name and the existing LIMO driver default both work. `/dev/ttyTHS2` is not
 passed through because it produced no chassis telemetry.
 
+The framework sets `LIMO_STARTUP_MODE=passive`. In this mode `limo_base` opens
+the serial device and publishes received telemetry, but does not send the
+commanded-mode frame or create a `/cmd_vel` subscription. Run the non-motion
+system check inside the development container with:
+
+```bash
+./scripts/check-limo-system.sh
+```
+
+The first passive system check received `/limo_status`, `/imu`, and
+`/wheel/odom`; confirmed that `/cmd_vel` was absent; and shut the node down
+cleanly. The stationary chassis reported 12.1 V, `error_code=0`, and zero wheel
+pose. The check also exposed and corrected an inherited status timestamp
+conversion that treated seconds as nanoseconds.
+
+The opt-in `limo-base` Compose service was then verified in commanded mode. ROS
+discovery from the development container showed one `/cmd_vel` subscriber and
+zero publishers. The chassis reported `control_mode=1`, 12.0 V, and
+`error_code=0`. One all-zero `Twist` was published; afterward the publisher
+count returned to zero and wheel odometry still reported zero linear and
+angular velocity. No nonzero motion command was issued.
+
+Source review found no software `/cmd_vel` watchdog in `limo_base`; its callback
+forwards each command without scheduling an automatic zero command. The
+controller's own timeout behavior has not yet been verified, so this bringup is
+ROS command-ready but is not approval for a nonzero driving test.
+
 Install and verify the compatibility alias with:
 
 ```bash

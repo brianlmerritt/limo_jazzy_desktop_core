@@ -54,7 +54,7 @@ def _semantic_errors(config: dict[str, Any]) -> list[str]:
     for name, device in config.get("devices", {}).items():
         accepted = [item["path"] for item in device["accepted_paths"]]
         if device["type"] == "serial":
-            for required_field in ("container_path", "baud_rate"):
+            for required_field in ("container_path", "baud_rate", "startup_mode"):
                 if required_field not in device:
                     errors.append(
                         f"devices.{name}.{required_field} is required for serial devices"
@@ -238,7 +238,8 @@ def check_devices(config: dict[str, Any], device_root: Path) -> Report:
             report.pass_(
                 f"Device '{name}' serial environment: "
                 f"LIMO_SERIAL_PORT={device['container_path']}, "
-                f"LIMO_SERIAL_BAUD={device['baud_rate']}."
+                f"LIMO_SERIAL_BAUD={device['baud_rate']}, "
+                f"LIMO_STARTUP_MODE={device['startup_mode']}."
             )
 
         alias_setup = device.get("alias_setup")

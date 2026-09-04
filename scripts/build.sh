@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 LIMO_SERIAL_PORT="${LIMO_SERIAL_PORT:-/dev/ttylimo}"
 LIMO_SERIAL_BAUD="${LIMO_SERIAL_BAUD:-460800}"
+LIMO_STARTUP_MODE="${LIMO_STARTUP_MODE:-passive}"
 
 if [[ ! "$LIMO_SERIAL_PORT" =~ ^(/dev/)?[A-Za-z0-9._-]+$ ]]; then
   echo "Invalid LIMO_SERIAL_PORT: ${LIMO_SERIAL_PORT}" >&2
@@ -20,8 +21,18 @@ case "$LIMO_SERIAL_BAUD" in
     ;;
 esac
 
+case "$LIMO_STARTUP_MODE" in
+  passive|commanded)
+    ;;
+  *)
+    echo "Unsupported LIMO_STARTUP_MODE: ${LIMO_STARTUP_MODE}" >&2
+    exit 1
+    ;;
+esac
+
 export LIMO_SERIAL_PORT
 export LIMO_SERIAL_BAUD
+export LIMO_STARTUP_MODE
 
 set +u
 source /opt/ros/humble/setup.bash
