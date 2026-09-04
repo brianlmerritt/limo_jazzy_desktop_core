@@ -1,60 +1,58 @@
-# ROS 2 Humble quick start
+# ROS 2 Humble robot bringup
 
-The host runs Ubuntu 24.04. ROS 2 Humble and its development tools run inside
-the Ubuntu 22.04 container.
+## Bring up the latest checked-out version
 
-## Start the development container
-
-From the repository root:
+Power the LIMO chassis and keep the robot safely supported before starting
+commanded mode. From the repository root, run:
 
 ```bash
-./scripts/configure-host-env.sh
-docker compose build dev
-docker compose up -d dev
+./scripts/bring_up_limo_base.sh
 ```
 
-Build the LIMO base packages:
+The script rebuilds the current image and LIMO packages, starts commanded
+chassis bringup, and checks ROS discovery, `/cmd_vel`, control mode, and chassis
+errors. It leaves the verified robot service running without publishing a
+velocity command.
+
+## Enter the ROS 2 environment
+
+Enter the running development container:
 
 ```bash
-docker compose exec dev \
-  ./scripts/build.sh --packages-up-to limo_base
+docker compose exec dev bash
 ```
 
-Run the passive, receive-only chassis check:
+Inside the container, source ROS 2 Humble and the built LIMO packages:
 
 ```bash
-docker compose exec dev ./scripts/check-limo-system.sh
+source /opt/ros/humble/setup.bash
+source /workspace/install/limo_msgs/share/limo_msgs/local_setup.bash
+source /workspace/install/limo_base/share/limo_base/local_setup.bash
 ```
 
-Passive mode receives `/limo_status`, `/imu`, and `/wheel/odom` without sending
-the commanded-mode frame or subscribing to `/cmd_vel`.
-
-## Commanded chassis bringup
-
-Only use commanded mode when the chassis is safely positioned and motion is
-intended. Start the lifecycle-managed robot service explicitly:
+ROS 2 commands can now be run directly, for example:
 
 ```bash
-docker compose --profile robot up -d limo-base
-docker compose logs --tail=100 limo-base
+ros2 node list
+ros2 topic list
 ```
 
-The `limo-base` service sends the commanded-mode frame and subscribes to
-`/cmd_vel`, but does not publish a velocity command itself. Inspect it from the
-development container:
+## Stop the robot
 
 ```bash
-docker compose exec dev ./scripts/ros2.sh node info /limo_base_node
-docker compose exec dev ./scripts/ros2.sh topic info /cmd_vel --verbose
-docker compose exec dev ./scripts/ros2.sh topic echo --once /limo_status
+docker compose stop limo-base
 ```
 
-Before a motion test, confirm `/cmd_vel` reports the expected subscriber and
-no unexpected publishers. The development and robot services share host
-network and IPC namespaces so ROS 2 discovery works between the containers.
+## Motion safety
 
-With the chassis safely supported, verify the command path without requesting
-movement by publishing one all-zero command:
+The current driver has no software command watchdog. It forwards each received
+`Twist` but does not automatically send zero if the publisher disappears. The
+chassis controller's own timeout has not yet been verified. Keep the robot
+supported and do not send a nonzero command until timeout and emergency-stop
+behaviour have been agreed and tested.
+
+To verify the command path without requesting movement, publish one all-zero
+command:
 
 ```bash
 docker compose exec dev ./scripts/ros2.sh topic pub --once \
@@ -64,34 +62,52 @@ docker compose exec dev ./scripts/ros2.sh topic echo --once /wheel/odom
 ```
 
 After the one-shot publisher exits, `/cmd_vel` should again report zero
-publishers. Do not substitute a nonzero command until the motion-test safety
-checks have been agreed. The current driver has no software command watchdog:
-it forwards each received `Twist` but does not send zero automatically if a
-publisher disappears. Any chassis-controller timeout is still unverified.
+publishers.
 
-Stop commanded bringup independently of the development container:
+## Reference: passive chassis check
+
+Passive mode receives `/limo_status`, `/imu`, and `/wheel/odom` without sending
+the commanded-mode frame or subscribing to `/cmd_vel`:
 
 ```bash
-docker compose stop limo-base
+docker compose exec dev ./scripts/check-limo-system.sh
 ```
 
-Open an interactive shell when needed:
+## Reference: container commands
+
+The manual equivalent of the main bringup script is:
+
+```bash
+./scripts/configure-host-env.sh
+docker compose stop limo-base
+docker compose build dev
+docker compose up -d --force-recreate dev
+docker compose exec -T dev ./scripts/build.sh --packages-up-to limo_base
+docker compose --profile robot up -d --force-recreate limo-base
+```
+
+Inspect a running chassis service manually:
+
+```bash
+docker compose logs --tail=100 limo-base
+docker compose exec dev ./scripts/ros2.sh node info /limo_base_node
+docker compose exec dev ./scripts/ros2.sh topic info /cmd_vel --verbose
+docker compose exec dev ./scripts/ros2.sh topic echo --once /limo_status
+```
+
+Open an interactive development shell:
 
 ```bash
 docker compose exec dev bash
 ```
 
-Stop the development container:
+Stop all project containers:
 
 ```bash
 docker compose down
 ```
 
-## Pass a command when creating a container
-
-`docker compose up` uses the service command from `compose.yaml` (`sleep
-infinity`). To create a temporary container and replace that command, use
-`docker compose run`:
+Run a one-off command in a temporary container:
 
 ```bash
 docker compose run --rm --no-deps dev <command> [arguments...]
@@ -109,7 +125,7 @@ docker compose run --rm --no-deps dev \
 docker compose run --rm --no-deps dev bash
 ```
 
-Use `docker compose exec dev ...` instead when the `dev` service is already
-running. The `robot` profile and `limo-base` service are the preferred commanded
-bringup path; do not publish `/cmd_vel` until a motion test is explicitly
-intended.
+The Ubuntu 24.04 host contains hardware access, Docker, and JetPack support.
+ROS 2 Humble and its development dependencies run in the Ubuntu 22.04
+containers. The development and robot services share host network and IPC
+namespaces so ROS 2 discovery works between them.
