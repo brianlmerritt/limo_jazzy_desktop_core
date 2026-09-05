@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "Run this check inside the Humble development container." >&2
+if [[ ! -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash ]]; then
+  echo "Run this check inside the Jazzy development container." >&2
   exit 1
 fi
 

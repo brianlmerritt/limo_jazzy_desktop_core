@@ -1,6 +1,6 @@
 services:
   dev:
-    container_name: limo_humble
+    container_name: limo_jazzy
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,7 +9,7 @@ services:
         DEV_UID: ${DEV_UID}
         DEV_GID: ${DEV_GID}
 
-    image: limo-humble-desktop-core:dev
+    image: limo-jazzy-desktop-core:dev
 
     network_mode: host
     ipc: host

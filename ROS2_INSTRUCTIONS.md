@@ -1,4 +1,47 @@
-# ROS 2 Humble robot bringup
+# ROS 2 Jazzy robot bringup
+
+## Jazzy migration: container first
+
+This branch uses `ros:jazzy-ros-base-noble` (Ubuntu 24.04, ARM64 on the Jetson).
+Ubuntu 24.04 ARM64 is a [supported Jazzy platform](https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Install-Binary.html).
+Container and ROS CLI validation are separate from hardware migration. The
+current sensor source pins are inherited from Humble; in particular the pinned
+RealSense wrapper does not yet accept Jazzy. **Do not run full robot/sensor
+bringup until those packages have been migrated and validated.** The bringup
+instructions below describe the intended workflow after that work.
+
+Build and start just the development container from the host:
+
+```bash
+docker compose build dev
+docker compose up -d --no-deps dev
+./scripts/ros-shell.sh
+```
+
+Existing `.env` device discovery can be reused while hardware stays connected.
+For a fresh checkout, run `./scripts/configure-host-env.sh` first with the
+configured hardware connected. Development startup does not start the robot.
+Close and reopen old shells when changing distributions.
+
+ROS outputs now live in `build/jazzy`, `install/jazzy`, and `log/jazzy`.
+SDK cache keys include the container platform, and SDK shell environments use
+`.deps/sensor-env-jazzy.sh`. Existing Humble outputs and `.deps/udev` are preserved.
+Use `./scripts/build.sh --packages-up-to limo_base` inside the container for the
+next chassis compatibility check. Plain `colcon build` would bypass this output
+layout; use the helper. For package tests use:
+
+```bash
+colcon --log-base log/jazzy test --build-base build/jazzy --install-base install/jazzy
+colcon test-result --test-result-base build/jazzy --verbose
+```
+
+
+Validation on 2026-09-05: the ARM64 Jazzy Desktop image built successfully and
+`dev` started with the configured NVIDIA runtime. An isolated container passed
+ROS CLI/package checks and a talker-to-subscriber message exchange. Automatic
+shell sourcing and all 53 configuration/script tests passed. This does not yet
+validate RViz rendering, chassis packages, or sensor packages under Jazzy. The
+existing Humble chassis and sensor services were left running during validation.
 
 ## Bring up the latest checked-out version
 
@@ -48,10 +91,10 @@ If you are already inside Docker, load the same environment with one command:
 source /workspace/scripts/ros-env.sh
 ```
 
-The helper loads ROS 2 Humble, the generated sensor SDK environment when present,
+The helper loads ROS 2 Jazzy, the generated sensor SDK environment when present,
 and complete installed package setup files in colcon dependency order. Stale
 partial installs without `local_setup.bash` are skipped. No package-by-package source list needs maintaining. It preserves
-the shell's nounset setting and reports missing underlay/workspace setup files.
+the shell's nounset setting. Before packages are built it loads the Jazzy underlay alone.
 It loads all installed packages; enabled-device selection controls running services,
 not which installed packages are visible in a shell. Re-source it after a rebuild,
 or open a new ROS shell.
@@ -212,6 +255,6 @@ docker compose run --rm --no-deps dev bash
 ```
 
 The Ubuntu 24.04 host contains hardware access, Docker, and JetPack support.
-ROS 2 Humble and its development dependencies run in the Ubuntu 22.04
+ROS 2 Jazzy and its development dependencies run in the Ubuntu 24.04
 containers. The development and robot services share host network and IPC
 namespaces so ROS 2 discovery works between them.

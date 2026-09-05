@@ -35,9 +35,10 @@ export LIMO_SERIAL_BAUD
 export LIMO_STARTUP_MODE
 
 set +u
-source /opt/ros/humble/setup.bash
+source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
 set -u
 
 cd "${ROOT}"
 
-colcon build --symlink-install --base-paths src "$@"
+colcon --log-base "log/${ROS_DISTRO}" build --build-base "build/${ROS_DISTRO}" \
+  --install-base "install/${ROS_DISTRO}" --symlink-install --base-paths src "$@"

@@ -8,22 +8,22 @@ fi
 _limo_load_ros_environment() {
   local workspace underlay overlay package_setups package_setup restore_nounset=false result=0
   workspace="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || return
-  underlay=/opt/ros/humble/setup.bash
-  overlay="${workspace}/install/local_setup.bash"
-  if [[ ! -r "$underlay" || ! -r "$overlay" ]]; then
-    echo "ROS environment missing. Run the host bringup script to build the workspace first." >&2
+  underlay=/opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
+  overlay="${workspace}/install/${ROS_DISTRO:-jazzy}/local_setup.bash"
+  if [[ ! -r "$underlay" ]]; then
+    echo "ROS underlay missing. Rebuild and start the dev container; see ROS2_INSTRUCTIONS.md." >&2
     return 1
   fi
   [[ "$-" != *u* ]] || restore_nounset=true
   set +u
   source "$underlay" || result=$?
-  if ((result == 0)) && [[ -r "${workspace}/.deps/sensor-env.sh" ]]; then
-    source "${workspace}/.deps/sensor-env.sh" || result=$?
+  if ((result == 0)) && [[ -r "${workspace}/.deps/sensor-env-${ROS_DISTRO}.sh" ]]; then
+    source "${workspace}/.deps/sensor-env-${ROS_DISTRO}.sh" || result=$?
   fi
-  if ((result == 0)); then
+  if ((result == 0)) && [[ -r "$overlay" ]]; then
     # Resolve complete package setups from colcon's dependency index. Ignore stale
     # partial installs whose local_setup.bash is absent (for example old limo_car).
-    package_setups="$(python3 "${workspace}/scripts/ros-env-packages.py" "${workspace}/install")" || result=$?
+    package_setups="$(python3 "${workspace}/scripts/ros-env-packages.py" "${workspace}/install/${ROS_DISTRO}")" || result=$?
     if ((result == 0)); then
       while IFS= read -r package_setup; do
         [[ -n "$package_setup" ]] || continue

@@ -274,3 +274,20 @@ Source `state: absent` is explicit removal intent and requires `required: false`
 and no enabled driver consuming that source. Application removes both the gitlink/
 checkout and the matching `.git/modules` cache after local-work checks. Disabled
 devices retain their checkouts. See `sensors.md` for removal and recovery details.
+
+## Jazzy container migration
+
+The `jazzy` branch targets Ubuntu 24.04 / ROS 2 Jazzy in `platform.container`.
+`Dockerfile` and Compose implement that platform; editing the platform declaration
+alone does not change the image or migrate source pins. The development image is
+`limo-jazzy-desktop-core:dev`, with container name `limo_jazzy`.
+
+Build helpers isolate ROS outputs under `build/<distro>`, `install/<distro>`, and
+`log/<distro>`. SDK cache hashes include the container platform as well as source
+pins. Runtime helpers load only `.deps/sensor-env-<distro>.sh` and the matching ROS
+overlay. Unbuilt workspaces can still open a shell with the base ROS installation.
+The build fingerprint changes with platform changes, requiring sensor rebuilds.
+Existing Humble outputs and udev installation records remain on disk.
+
+See `ROS2_INSTRUCTIONS.md` for the container-only migration commands and the
+remaining hardware package compatibility work before full bringup.

@@ -27,7 +27,7 @@ if [[ $# -gt 0 ]]; then
   echo "Usage: $0  (run on the host; brings up the chassis and configured sensors)" >&2
   exit 2
 fi
-if [[ -f /opt/ros/humble/setup.bash && "$ROOT" == /workspace ]]; then
+if [[ -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash && "$ROOT" == /workspace ]]; then
   echo "Run this bringup script from the host repository, not inside Docker." >&2
   exit 2
 fi

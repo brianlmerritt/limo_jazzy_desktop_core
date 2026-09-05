@@ -101,7 +101,25 @@ class SelectionTest(unittest.TestCase):
         self.assertIn('a' * 40, updated)
         self.assertNotEqual(original, updated)
         self.assertIn('-DFORCE_RSUSB_BACKEND=ON', updated)
-        self.assertLess(updated.index('colcon build'), updated.index('mv "$driver_env_tmp"'))
+        self.assertLess(updated.index('colcon --log-base'), updated.index('mv "$driver_env_tmp"'))
+
+    def test_container_platform_isolates_builds(self):
+        data = config()
+        jazzy_script, jazzy_id = build_script(data), build_id(data)
+        data['platform']['container'].update(ros_distribution='humble', release='22.04')
+        humble_script = build_script(data)
+        self.assertNotEqual(jazzy_id, build_id(data))
+        self.assertIn('--install-base install/jazzy', jazzy_script)
+        self.assertIn('--install-base install/humble', humble_script)
+        self.assertIn('.deps/sensor-env-jazzy.sh', jazzy_script)
+        self.assertIn('.deps/sensor-env-humble.sh', humble_script)
+        jazzy_prefixes = {line for line in jazzy_script.splitlines()
+                          if line.startswith('export CMAKE_PREFIX_PATH=')}
+        humble_prefixes = {line for line in humble_script.splitlines()
+                           if line.startswith('export CMAKE_PREFIX_PATH=')}
+        self.assertTrue(jazzy_prefixes.isdisjoint(humble_prefixes))
+        data['platform']['container']['release'] = '24.04'
+        self.assertNotEqual(humble_script, build_script(data))
 
     def test_all_generated_shell_has_valid_syntax(self):
         for script in (build_script(config()), device_env(config()), udev_env(config())):
@@ -120,14 +138,14 @@ class SelectionTest(unittest.TestCase):
         script = build_script(config())
         self.assertIn('export LIBRARY_PATH=/workspace/.deps/drivers/ydlidar/', script)
         self.assertIn('"${LIBRARY_PATH:+:${LIBRARY_PATH}}"', script)
-        self.assertLess(script.index('export LIBRARY_PATH='), script.index('colcon build'))
+        self.assertLess(script.index('export LIBRARY_PATH='), script.index('colcon --log-base'))
 
     def test_no_drivers_builds_no_packages(self):
         data = config()
         for device in data['devices'].values():
             if 'driver' in device:
                 device['enabled'] = False
-        self.assertNotIn('colcon build', build_script(data))
+        self.assertNotIn('colcon --log-base', build_script(data))
         self.assertEqual([s['name'] for s in selected_sources(data)], ['limo_ros2'])
 
 

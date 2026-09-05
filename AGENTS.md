@@ -33,10 +33,10 @@ For an externally maintained repository that should not be changed, prefer a sib
 - `docker compose build dev`: build the selected development image.
 - `docker compose up -d dev && docker compose exec dev bash`: start and enter it.
 - `./scripts/build.sh`: run `colcon build --symlink-install` inside the container.
-- `colcon test && colcon test-result --verbose`: run and inspect package tests.
+- `colcon --log-base log/jazzy test --build-base build/jazzy --install-base install/jazzy` then `colcon test-result --test-result-base build/jazzy --verbose`: run and inspect package tests.
 - `./scripts/host-check.sh`: capture host, Jetson, Docker, USB, and network state.
 
-The current validation target is the Humble fork in an Ubuntu 22.04 container. Jazzy migration belongs on a later `jazzy` branch with an Ubuntu 24.04/ROS 2 Jazzy image.
+This `jazzy` branch targets Ubuntu 24.04 / ROS 2 Jazzy in Docker. Container validation comes first; the inherited Humble hardware source pins still need separate Jazzy compatibility validation. Use distro-specific build, install, and log directories through the framework helpers.
 
 ## Style and Testing
 

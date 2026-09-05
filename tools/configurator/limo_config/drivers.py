@@ -283,16 +283,17 @@ def source_plan(config: dict, workspace: Path) -> str:
 
 def build_id(config: dict) -> str:
     data = {
-        'recipe_version': 2,
+        'recipe_version': 3,
         'drivers': active_drivers(config),
         'sources': [s for s in selected_sources(config) if any(
             s['name'] in d['sources'].values() for d in active_drivers(config).values())],
-        'ros_distribution': config['platform']['container']['ros_distribution'],
+        'platform': config['platform']['container'],
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
 def build_script(config: dict) -> str:
+    distro = config['platform']['container']['ros_distribution']
     sources = {source['name']: source for source in config['sources']}
     lines = ['#!/usr/bin/env bash', 'set -euo pipefail', 'cd /workspace',
              'set +u', command('source', '/opt/ros/' + config['platform']['container']['ros_distribution'] + '/setup.bash'), 'set -u']
@@ -302,7 +303,7 @@ def build_script(config: dict) -> str:
         ros = sources[driver['sources']['ros']]
         recipe = driver['build_recipe']
         # Isolate revisions to avoid reusing libraries left behind by a changed SDK.
-        digest = hashlib.sha256(repr((recipe, sdk, ros)).encode()).hexdigest()[:16]
+        digest = hashlib.sha256(repr((recipe, sdk, ros, config['platform']['container'])).encode()).hexdigest()[:16]
         prefix = f'/workspace/.deps/drivers/{name}/{digest}'
         build = f'/workspace/.deps/build/{name}/{digest}'
         prefixes.append(prefix)
@@ -325,14 +326,14 @@ def build_script(config: dict) -> str:
                   f'export LIBRARY_PATH={shlex.quote(prefix + "/lib")}"${{LIBRARY_PATH:+:${{LIBRARY_PATH}}}}"',
                   f'export LD_LIBRARY_PATH={shlex.quote(prefix + "/lib")}"${{LD_LIBRARY_PATH:+:${{LD_LIBRARY_PATH}}}}"',
                   f'export PKG_CONFIG_PATH={shlex.quote(prefix + "/lib/pkgconfig")}"${{PKG_CONFIG_PATH:+:${{PKG_CONFIG_PATH}}}}"',
-                  command('colcon', 'build', '--symlink-install', '--cmake-clean-cache', '--base-paths', ros['path'], '--packages-select', *packages)]
+                  command('colcon', '--log-base', f'log/{distro}', 'build', '--build-base', f'build/{distro}', '--install-base', f'install/{distro}', '--symlink-install', '--cmake-clean-cache', '--base-paths', ros['path'], '--packages-select', *packages)]
     env = '\n'.join([
         'export CMAKE_PREFIX_PATH=' + shlex.quote(':'.join(prefixes)) + '"${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"',
         'export LIBRARY_PATH=' + shlex.quote(':'.join(p + '/lib' for p in prefixes)) + '"${LIBRARY_PATH:+:${LIBRARY_PATH}}"',
         'export LD_LIBRARY_PATH=' + shlex.quote(':'.join(p + '/lib' for p in prefixes)) + '"${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"',
         'export PKG_CONFIG_PATH=' + shlex.quote(':'.join(p + '/lib/pkgconfig' for p in prefixes)) + '"${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"', '']) if prefixes else '# No enabled sensor drivers\n'
     lines += ['mkdir -p .deps', 'driver_env_tmp="$(mktemp .deps/sensor-env.XXXXXX)"', 'trap \'rm -f "$driver_env_tmp"\' EXIT',
-              'printf %s ' + shlex.quote(env) + ' > "$driver_env_tmp"', 'mv "$driver_env_tmp" .deps/sensor-env.sh',
+              'printf %s ' + shlex.quote(env) + ' > "$driver_env_tmp"', f'mv "$driver_env_tmp" .deps/sensor-env-{distro}.sh',
               'driver_env_tmp="$(mktemp .deps/driver-build.XXXXXX)"',
               command('printf', '%s\n', build_id(config)) + ' > "$driver_env_tmp"',
               'mv "$driver_env_tmp" .deps/driver-build.sha256']

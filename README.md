@@ -2,7 +2,9 @@
 
 Reproducible ROS 2 development environment and core platform configuration for
 the AgileX LIMO running on NVIDIA Jetson Orin Nano. The current baseline uses
-ROS 2 Humble in Ubuntu 22.04; Jazzy migration follows on a later branch.
+ROS 2 Jazzy in Ubuntu 24.04; this branch is migrating the hardware stack to Jazzy.
+
+Hardware source compatibility is still being migrated; start with the container-only workflow.
 
 See `ROS2_INSTRUCTIONS.md` for the current container, build, passive check, and
 explicit commanded bringup commands.
@@ -10,7 +12,7 @@ explicit commanded bringup commands.
 ## Goals
 
 - Ubuntu 24.04 / JetPack host
-- ROS 2 Humble Desktop in an Ubuntu 22.04 container
+- ROS 2 Jazzy Desktop in an Ubuntu 24.04 container
 - Reproducible external ROS dependencies
 - VS Code Remote SSH + Dev Containers workflow
 - Multi-camera perception
@@ -47,7 +49,7 @@ The LIMO chassis—not only the Jetson—must be powered before serial-device te
 
 ## Central configuration checks
 
-The expected Ubuntu host, Humble container, chassis and sensor identities, and
+The expected Ubuntu host, Jazzy container, chassis and sensor identities, and
 source submodules are declared in `config/config.yaml` and validated inside
 Docker:
 
@@ -113,6 +115,6 @@ pins, and checks chassis readiness without publishing velocity commands. It
 restarts existing robot services; Git source updates remain a separate command.
 
 Run `./scripts/ros-shell.sh` from the host for an interactive Docker shell with
-Humble and the built workspace already sourced. In an existing container shell,
+Jazzy and any built Jazzy workspace packages already sourced. In an existing container shell,
 use `source /workspace/scripts/ros-env.sh`. `scripts/ros2.sh` and the node launch
 wrappers share that same environment loader.

@@ -8,8 +8,8 @@ platform:
     l4t_required: true
   container:
     distribution: ubuntu
-    release: "22.04"
-    ros_distribution: humble
+    release: "24.04"
+    ros_distribution: jazzy
     compose_service: dev
 
 host:

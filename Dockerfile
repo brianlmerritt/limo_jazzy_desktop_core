@@ -1,6 +1,6 @@
-FROM ros:humble-ros-base-jammy
+FROM ros:jazzy-ros-base-noble
 
-ARG ROS_DISTRO=humble
+ARG ROS_DISTRO=jazzy
 ARG DEV_USER
 ARG DEV_UID
 ARG DEV_GID
@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ros-humble-desktop \
+        ros-${ROS_DISTRO}-desktop \
         ros-dev-tools \
         python3-vcstool \
         python3-colcon-common-extensions \
@@ -24,12 +24,13 @@ RUN apt-get update && \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# RealSense ROS wrapper dependency not included in ros-humble-desktop.
+# RealSense ROS wrapper dependency not included in ros-${ROS_DISTRO}-desktop.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ros-humble-diagnostic-updater \
+    && apt-get install -y --no-install-recommends ros-${ROS_DISTRO}-diagnostic-updater \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
+    if id ubuntu >/dev/null 2>&1; then userdel -r ubuntu; fi; \
     if getent group "${DEV_GID}" >/dev/null; then \
         DEV_GROUP="$(getent group "${DEV_GID}" | cut -d: -f1)"; \
     else \

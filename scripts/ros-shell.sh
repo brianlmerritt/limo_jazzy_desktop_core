@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -f /opt/ros/humble/setup.bash && "$ROOT" == /workspace ]]; then
+if [[ -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash && "$ROOT" == /workspace ]]; then
   exec bash --rcfile "${ROOT}/scripts/ros-shell-rc.bash" -i
 fi
 exec docker compose --project-directory "$ROOT" -f "${ROOT}/compose.yaml" \

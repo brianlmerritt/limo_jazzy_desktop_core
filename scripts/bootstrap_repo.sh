@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+echo "Retired scaffold: use the tracked Dockerfile and scripts/setup.sh; see ROS2_INSTRUCTIONS.md." >&2
+exit 1
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
