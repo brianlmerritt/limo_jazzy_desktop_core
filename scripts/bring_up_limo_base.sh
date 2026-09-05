@@ -2,44 +2,65 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ROBOT_STARTED=false
+SERVICES_TOUCHED=false
 
 show_failure() {
   local exit_code=$?
 
-  if [[ "$ROBOT_STARTED" == true ]]; then
-    echo "LIMO base bringup failed; recent logs follow." >&2
-    docker compose logs --tail=100 limo-base >&2 || true
-    docker compose stop limo-base >/dev/null 2>&1 || true
-    echo "Stopped the limo-base service after the failed readiness check." >&2
+  if ((exit_code != 0)) && [[ "$SERVICES_TOUCHED" == true ]]; then
+    echo "Robot/sensor bringup failed; recent logs follow." >&2
+    docker compose logs --tail=100 limo-base ydlidar realsense >&2 || true
+    docker compose --profile robot --profile sensors stop limo-base ydlidar realsense >/dev/null 2>&1 || true
+    echo "Stopped chassis and sensor services after failed bringup." >&2
   fi
 
   exit "$exit_code"
 }
 
-trap show_failure ERR
+trap show_failure EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 cd "$ROOT"
 
-echo "[1/6] Checking the LIMO device and configuring Compose..."
+if [[ $# -gt 0 ]]; then
+  echo "Usage: $0  (run on the host; brings up the chassis and configured sensors)" >&2
+  exit 2
+fi
+if [[ -f /opt/ros/humble/setup.bash && "$ROOT" == /workspace ]]; then
+  echo "Run this bringup script from the host repository, not inside Docker." >&2
+  exit 2
+fi
+
+echo "[1/9] Checking configured sources and installing sensor access rules..."
+./scripts/setup.sh check-sources
+./scripts/configure-sensor-udev.sh install all
+
+echo "[2/9] Checking devices and configuring Compose..."
 ./scripts/configure-host-env.sh
 
-echo "[2/6] Stopping any previous LIMO base service..."
-docker compose stop limo-base
+echo "[3/9] Stopping previous chassis and sensor services before rebuilding..."
+SERVICES_TOUCHED=true
+docker compose --profile robot --profile sensors stop limo-base ydlidar realsense
 
-echo "[3/6] Building the current development image..."
+echo "[4/9] Building the current development image..."
 docker compose build dev
 
-echo "[4/6] Starting the development container..."
+echo "[5/9] Starting the development container..."
 docker compose up -d --force-recreate dev
 
-echo "[5/6] Building limo_base from the current checkout..."
+echo "[6/9] Building limo_base from the current checkout..."
 docker compose exec -T dev \
   ./scripts/build.sh --packages-up-to limo_base
 
-echo "[6/6] Starting and checking commanded chassis bringup..."
+echo "[7/9] Building drivers selected by enabled sensor devices..."
+./scripts/setup.sh build-drivers
+
+echo "[8/9] Starting configured sensor services..."
+./scripts/setup.sh start-drivers
+
+echo "[9/9] Starting and checking commanded chassis bringup..."
 docker compose --profile robot up -d --force-recreate limo-base
-ROBOT_STARTED=true
 
 node_found=false
 for _ in {1..20}; do
@@ -87,8 +108,9 @@ if ! grep -Fxq "error_code: 0" <<<"$limo_status"; then
   false
 fi
 
-trap - ERR
+trap - EXIT INT TERM
 
-echo "LIMO base is running and ready to receive /cmd_vel."
+echo "LIMO base is ready to receive /cmd_vel; configured sensor services have been started."
+echo "Open a ROS-ready shell with: ./scripts/ros-shell.sh"
 echo "No velocity command was published."
-echo "Stop it with: docker compose stop limo-base"
+echo "Stop all robot services with: docker compose --profile robot --profile sensors stop limo-base ydlidar realsense"

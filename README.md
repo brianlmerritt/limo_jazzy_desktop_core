@@ -104,3 +104,15 @@ submodules at their configured pins. Then `./scripts/setup.sh build-drivers`
 builds enabled sensor drivers in Docker and `./scripts/setup.sh start-drivers`
 refreshes discovery and starts their services. The complete first-run sequence,
 including host access rules and passive checks, is in [ROS2_INSTRUCTIONS.md](ROS2_INSTRUCTIONS.md).
+
+## Combined robot bringup and ROS shell
+
+Run `./scripts/bring_up_limo_base.sh` on the host to rebuild and start the chassis
+and configured enabled sensors. It installs sensor access rules, verifies source
+pins, and checks chassis readiness without publishing velocity commands. It
+restarts existing robot services; Git source updates remain a separate command.
+
+Run `./scripts/ros-shell.sh` from the host for an interactive Docker shell with
+Humble and the built workspace already sourced. In an existing container shell,
+use `source /workspace/scripts/ros-env.sh`. `scripts/ros2.sh` and the node launch
+wrappers share that same environment loader.

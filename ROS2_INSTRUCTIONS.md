@@ -9,35 +9,63 @@ commanded mode. From the repository root, run:
 ./scripts/bring_up_limo_base.sh
 ```
 
-The script rebuilds the current image and LIMO packages, starts commanded
-chassis bringup, and checks ROS discovery, `/cmd_vel`, control mode, and chassis
-errors. It leaves the verified robot service running without publishing a
-velocity command.
+The existing script now brings up the chassis **and enabled sensors**. It checks
+configured source pins, installs/updates sensor udev rules (sudo), discovers
+devices, stops existing chassis/sensor services, rebuilds the image and LIMO
+packages, builds selected sensor drivers, and starts the sensors before commanded
+chassis bringup. It checks chassis discovery, `/cmd_vel`, control mode, and errors
+without publishing a velocity command. Sensor service startup is not a substitute
+for checking live sensor data with the commands below.
+
+Bringup does **not** open a shell or attach to the running robot. Containers run
+in detached mode; once readiness checks finish the script returns to your host
+prompt. Opening or closing `ros-shell.sh` is independent of robot operation.
+
+This restarts the robot services and interrupts existing development-container
+shells. A failure after services have been stopped also stops newly started
+chassis/sensor services. Source verification failures leave running services alone.
+It does not apply Git source changes; use `setup.sh apply-sources` separately when
+adding sources or changing pins.
 
 ## Enter the ROS 2 environment
 
-Enter the running development container:
+From the host repository, open a shell with ROS already loaded:
 
 ```bash
-docker compose exec dev bash
+./scripts/ros-shell.sh
 ```
 
-Inside the container, source ROS 2 Humble and the built LIMO packages:
-
-```bash
-source /opt/ros/humble/setup.bash
-source /workspace/install/limo_msgs/share/limo_msgs/local_setup.bash
-source /workspace/install/limo_base/share/limo_base/local_setup.bash
-```
-
-ROS 2 commands can now be run directly, for example:
+Then run ROS commands directly:
 
 ```bash
 ros2 node list
 ros2 topic list
 ```
 
-## Bring up the LiDAR and front camera
+If you are already inside Docker, load the same environment with one command:
+
+```bash
+source /workspace/scripts/ros-env.sh
+```
+
+The helper loads ROS 2 Humble, the generated sensor SDK environment when present,
+and complete installed package setup files in colcon dependency order. Stale
+partial installs without `local_setup.bash` are skipped. No package-by-package source list needs maintaining. It preserves
+the shell's nounset setting and reports missing underlay/workspace setup files.
+It loads all installed packages; enabled-device selection controls running services,
+not which installed packages are visible in a shell. Re-source it after a rebuild,
+or open a new ROS shell.
+
+For one command from the host without opening a shell:
+
+```bash
+docker compose exec dev ./scripts/ros2.sh topic list
+```
+
+## Sensor-only setup and bringup
+
+For a full robot bringup, use `./scripts/bring_up_limo_base.sh` above. The
+following sequence remains available for source setup or sensor-only work.
 
 Non-ROS SDKs live in `drivers/`; ROS sensor packages live in
 `src/ros2_devices/`. The existing chassis fork remains in `src/limo_ros2/`.
@@ -124,14 +152,19 @@ docker compose exec dev ./scripts/check-limo-system.sh
 
 ## Reference: container commands
 
-The manual equivalent of the main bringup script is:
+The following starts the same services manually; use the main script for its
+chassis readiness checks and failure cleanup:
 
 ```bash
+./scripts/setup.sh check-sources
+./scripts/configure-sensor-udev.sh install all
 ./scripts/configure-host-env.sh
-docker compose stop limo-base
+docker compose --profile robot --profile sensors stop limo-base ydlidar realsense
 docker compose build dev
 docker compose up -d --force-recreate dev
 docker compose exec -T dev ./scripts/build.sh --packages-up-to limo_base
+./scripts/setup.sh build-drivers
+./scripts/setup.sh start-drivers
 docker compose --profile robot up -d --force-recreate limo-base
 ```
 
@@ -144,10 +177,10 @@ docker compose exec dev ./scripts/ros2.sh topic info /cmd_vel --verbose
 docker compose exec dev ./scripts/ros2.sh topic echo --once /limo_status
 ```
 
-Open an interactive development shell:
+Open an interactive development shell with ROS loaded:
 
 ```bash
-docker compose exec dev bash
+./scripts/ros-shell.sh
 ```
 
 Stop all project containers:

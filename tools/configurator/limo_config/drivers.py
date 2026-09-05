@@ -282,7 +282,7 @@ def source_plan(config: dict, workspace: Path) -> str:
 
 def build_id(config: dict) -> str:
     data = {
-        'recipe_version': 1,
+        'recipe_version': 2,
         'drivers': active_drivers(config),
         'sources': [s for s in selected_sources(config) if any(
             s['name'] in d['sources'].values() for d in active_drivers(config).values())],
@@ -319,11 +319,15 @@ def build_script(config: dict) -> str:
                   command('cmake', '--build', build, '--parallel') + ' "$(nproc)"',
                   command('cmake', '--install', build),
                   f'export CMAKE_PREFIX_PATH={shlex.quote(prefix)}"${{CMAKE_PREFIX_PATH:+:${{CMAKE_PREFIX_PATH}}}}"',
+                  # The pinned YDLIDAR SDK exports an empty library-directory list.
+                  # GCC needs LIBRARY_PATH for its bare -lydlidar_sdk link argument.
+                  f'export LIBRARY_PATH={shlex.quote(prefix + "/lib")}"${{LIBRARY_PATH:+:${{LIBRARY_PATH}}}}"',
                   f'export LD_LIBRARY_PATH={shlex.quote(prefix + "/lib")}"${{LD_LIBRARY_PATH:+:${{LD_LIBRARY_PATH}}}}"',
                   f'export PKG_CONFIG_PATH={shlex.quote(prefix + "/lib/pkgconfig")}"${{PKG_CONFIG_PATH:+:${{PKG_CONFIG_PATH}}}}"',
                   command('colcon', 'build', '--symlink-install', '--cmake-clean-cache', '--base-paths', ros['path'], '--packages-select', *packages)]
     env = '\n'.join([
         'export CMAKE_PREFIX_PATH=' + shlex.quote(':'.join(prefixes)) + '"${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"',
+        'export LIBRARY_PATH=' + shlex.quote(':'.join(p + '/lib' for p in prefixes)) + '"${LIBRARY_PATH:+:${LIBRARY_PATH}}"',
         'export LD_LIBRARY_PATH=' + shlex.quote(':'.join(p + '/lib' for p in prefixes)) + '"${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"',
         'export PKG_CONFIG_PATH=' + shlex.quote(':'.join(p + '/lib/pkgconfig' for p in prefixes)) + '"${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"', '']) if prefixes else '# No enabled sensor drivers\n'
     lines += ['mkdir -p .deps', 'driver_env_tmp="$(mktemp .deps/sensor-env.XXXXXX)"', 'trap \'rm -f "$driver_env_tmp"\' EXIT',

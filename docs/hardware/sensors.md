@@ -198,3 +198,32 @@ Restore a removed dependency by setting `state: present`, enabling its device,
 and applying/building again. Restoration fetches the configured revision; it does
 not recover deleted local-only work. No new parent folder is needed for these
 sensors. Discuss future AI or other ROS parent folders with the owner first.
+
+## Combined bringup and environment loading
+
+`./scripts/bring_up_limo_base.sh` now includes the enabled sensor stack. It
+verifies sources, installs sensor rules, resolves devices, stops chassis/sensors
+before rebuilding, builds LIMO and selected drivers, starts sensors, then starts
+and checks the commanded chassis. It does not apply source configuration to Git.
+If a later step fails, it stops the chassis and sensor services started by this
+workflow. Run it from the host with chassis power and required sensors connected.
+The standalone setup/build/start commands above remain available for sensor-only
+work. Sensor data smoke tests remain separate from chassis readiness checks.
+
+`./scripts/ros-shell.sh` opens an interactive Docker shell with ROS ready.
+`source /workspace/scripts/ros-env.sh` loads the same environment in an existing
+container shell. The shared loader sources Humble, optional built sensor SDK
+paths, and complete installed package setups in colcon dependency order, so newly built packages become
+available without editing shell scripts. Startup still follows config enablement;
+the shell can see all installed packages. Missing workspace setup is an error.
+
+## YDLIDAR linker search path
+
+The pinned SDK installs `libydlidar_sdk.a` into its configured prefix's `lib/`
+directory, but its CMake package export leaves `YDLIDAR_SDK_LIBRARY_DIRS` empty.
+The wrapper consequently links with bare `-lydlidar_sdk`. The framework recipe
+sets GCC's `LIBRARY_PATH` to selected SDK library directories for link-time lookup,
+and publishes it in the generated sensor environment for subsequent shell builds.
+`LD_LIBRARY_PATH` remains the separate runtime library search path. Source pins
+and upstream repositories are unchanged. Re-run `setup.sh build-drivers` (or full
+bringup) after updating the recipe; no manual SDK installation is necessary.

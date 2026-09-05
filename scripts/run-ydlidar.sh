@@ -14,11 +14,7 @@ fi
   echo "Missing YDLIDAR_ROS_CONFIG parameter file." >&2
   exit 1
 }
-set +u
-source /opt/ros/humble/setup.bash
-source /workspace/scripts/sensor-env.sh
-source /workspace/install/ydlidar_ros2_driver/share/ydlidar_ros2_driver/local_setup.bash
-set -u
+source "$(dirname "${BASH_SOURCE[0]}")/ros-env.sh"
 
 exec ros2 run ydlidar_ros2_driver ydlidar_ros2_driver_node \
   --ros-args --params-file "$YDLIDAR_ROS_CONFIG" \

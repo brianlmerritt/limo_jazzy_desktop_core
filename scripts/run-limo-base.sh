@@ -17,11 +17,7 @@ if [[ ! -c "${LIMO_SERIAL_PORT:-}" ]]; then
   exit 1
 fi
 
-set +u
-source /opt/ros/humble/setup.bash
-source /workspace/install/limo_msgs/share/limo_msgs/local_setup.bash
-source /workspace/install/limo_base/share/limo_base/local_setup.bash
-set -u
+source "$(dirname "${BASH_SOURCE[0]}")/ros-env.sh"
 
 echo "Starting limo_base in ${startup_mode} mode on ${LIMO_SERIAL_PORT} at ${LIMO_SERIAL_BAUD} baud."
 exec ros2 launch limo_base limo_base.launch.py startup_mode:="${startup_mode}"

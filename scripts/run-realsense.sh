@@ -14,13 +14,7 @@ fi
   echo "Missing REALSENSE_ROS_CONFIG parameter file." >&2
   exit 1
 }
-set +u
-source /opt/ros/humble/setup.bash
-source /workspace/scripts/sensor-env.sh
-source /workspace/install/realsense2_camera_msgs/share/realsense2_camera_msgs/local_setup.bash
-source /workspace/install/realsense2_description/share/realsense2_description/local_setup.bash
-source /workspace/install/realsense2_camera/share/realsense2_camera/local_setup.bash
-set -u
+source "$(dirname "${BASH_SOURCE[0]}")/ros-env.sh"
 
 exec ros2 launch realsense2_camera rs_launch.py \
   config_file:="$REALSENSE_ROS_CONFIG" \

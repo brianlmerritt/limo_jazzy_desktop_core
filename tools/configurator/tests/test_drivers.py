@@ -106,6 +106,12 @@ class SelectionTest(unittest.TestCase):
         data['sources'][1]['revision'] = 'a' * 40
         self.assertNotEqual(build_id(data), original)
 
+    def test_sdk_link_time_search_path_precedes_wrapper_build(self):
+        script = build_script(config())
+        self.assertIn('export LIBRARY_PATH=/workspace/.deps/drivers/ydlidar/', script)
+        self.assertIn('"${LIBRARY_PATH:+:${LIBRARY_PATH}}"', script)
+        self.assertLess(script.index('export LIBRARY_PATH='), script.index('colcon build'))
+
     def test_no_drivers_builds_no_packages(self):
         data = config()
         for device in data['devices'].values():
