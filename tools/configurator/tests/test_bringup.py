@@ -77,3 +77,54 @@ exit 0
         self.assertIn('Unexpected /cmd_vel publisher', result.stderr)
         self.assertEqual(calls.count(' stop '), 2)
         self.assertNotIn('topic pub', calls)
+
+
+class ChassisBringupTest(unittest.TestCase):
+    def test_passive_start_and_failure_boundaries(self):
+        for failure in ('none', 'build', 'check', 'commanded'):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / 'scripts').mkdir()
+                shutil.copy('/workspace/scripts/bring-up-limo-chassis.sh', root / 'scripts')
+                binary = root / 'bin'
+                binary.mkdir()
+                docker = binary / 'docker'
+                docker.write_text('''#!/usr/bin/env bash
+printf '%s mode=%s\\n' "$*" "${LIMO_BASE_STARTUP_MODE:-}" >> "$CALL_LOG"
+case "$*" in
+  *'scripts/build.sh'*) [[ "$FAILURE" != build ]] || exit 1 ;;
+  *'scripts/check-limo-system.sh'*) [[ "$FAILURE" != check ]] || exit 1 ;;
+  *'param get /limo_base_node startup_mode') echo "String value is: $EXPECTED_MODE" ;;
+  *'node info /limo_base_node')
+    echo 'Publishers: /limo_status'
+    if [[ "$EXPECTED_MODE" == commanded ]]; then echo 'Subscribers: /cmd_vel'; fi ;;
+esac
+''')
+                docker.chmod(0o755)
+                calls = root / 'calls'
+                result = subprocess.run(
+                    ['bash', str(root / 'scripts/bring-up-limo-chassis.sh')] +
+                    ([] if failure == 'commanded' else ['passive']),
+                    env=dict(os.environ, PATH=f'{binary}:' + os.environ['PATH'],
+                             CALL_LOG=str(calls), FAILURE=failure,
+                             EXPECTED_MODE='commanded' if failure == 'commanded' else 'passive'),
+                    capture_output=True, text=True, timeout=10)
+                log = calls.read_text()
+                self.assertNotIn('ydlidar', log)
+                self.assertNotIn('realsense', log)
+                self.assertNotIn('topic pub', log)
+                if failure == 'build':
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn('stop limo-base', log)
+                elif failure == 'check':
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn('--force-recreate limo-base', log)
+                    self.assertEqual(log.count('stop limo-base'), 2)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    if failure == 'commanded':
+                        self.assertIn('--no-deps --force-recreate limo-base mode=commanded', log)
+                        self.assertNotIn('check-limo-system.sh', log)
+                        continue
+                    self.assertIn('--no-deps --force-recreate limo-base mode=passive', log)
+                    self.assertLess(log.index('check-limo-system.sh'), log.index('up -d --no-deps --force-recreate'))

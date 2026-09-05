@@ -4,7 +4,7 @@ Reproducible ROS 2 development environment and core platform configuration for
 the AgileX LIMO running on NVIDIA Jetson Orin Nano. The current baseline uses
 ROS 2 Jazzy in Ubuntu 24.04; this branch is migrating the hardware stack to Jazzy.
 
-Hardware source compatibility is still being migrated; start with the container-only workflow.
+Jazzy chassis build and passive hardware checks pass. Use `./scripts/bring-up-limo-chassis.sh` for chassis-only startup; sensor migration is next.
 
 See `ROS2_INSTRUCTIONS.md` for the current container, build, passive check, and
 explicit commanded bringup commands.

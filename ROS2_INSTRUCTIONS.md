@@ -1,6 +1,6 @@
 # ROS 2 Jazzy robot bringup
 
-## Jazzy migration: container first
+## Jazzy migration status
 
 This branch uses `ros:jazzy-ros-base-noble` (Ubuntu 24.04, ARM64 on the Jetson).
 Ubuntu 24.04 ARM64 is a [supported Jazzy platform](https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Install-Binary.html).
@@ -27,7 +27,7 @@ ROS outputs now live in `build/jazzy`, `install/jazzy`, and `log/jazzy`.
 SDK cache keys include the container platform, and SDK shell environments use
 `.deps/sensor-env-jazzy.sh`. Existing Humble outputs and `.deps/udev` are preserved.
 Use `./scripts/build.sh --packages-up-to limo_base` inside the container for the
-next chassis compatibility check. Plain `colcon build` would bypass this output
+a chassis build without restarting hardware. Plain `colcon build` would bypass this output
 layout; use the helper. For package tests use:
 
 ```bash
@@ -40,8 +40,56 @@ Validation on 2026-09-05: the ARM64 Jazzy Desktop image built successfully and
 `dev` started with the configured NVIDIA runtime. An isolated container passed
 ROS CLI/package checks and a talker-to-subscriber message exchange. Automatic
 shell sourcing and all 53 configuration/script tests passed. This does not yet
-validate RViz rendering, chassis packages, or sensor packages under Jazzy. The
+validate RViz rendering or sensor packages under Jazzy. The
 existing Humble chassis and sensor services were left running during validation.
+
+## Chassis-only Jazzy bringup (available now)
+
+The chassis-only launcher defaults to **commanded mode**, with a `/cmd_vel`
+subscription. Cancel any waiting velocity publisher before starting it.
+From the host repository, with Docker running and chassis power on:
+
+```bash
+# Optional clean restart; this also stops any running sensor services.
+docker compose --profile robot --profile sensors down
+./scripts/bring-up-limo-chassis.sh
+```
+
+The script starts `dev` if needed, builds the chassis packages, and starts the
+chassis detached in commanded mode. It does not repeat the already completed
+passive diagnostic. It checks the selected mode and command interface. It does
+not start sensors or publish velocity commands. For receive-only diagnostics:
+
+```bash
+./scripts/bring-up-limo-chassis.sh passive
+```
+
+Build failures leave the previous chassis running; failures after the stop leave
+the chassis stopped. Closing the terminal does not stop successful bringup.
+
+Validation on 2026-09-05 passed for `/limo_status`, `/imu`, `/wheel/odom`, nonzero
+battery voltage, zero chassis error code, and clean SIGINT shutdown. The Jazzy
+shutdown exception was fixed in `src/limo_ros2`. All six reported package tests
+and 54 framework tests passed. Existing unused-variable warnings remain.
+Passive mode does not reset the controller's previously selected control mode;
+`control_mode: 1` can still appear while the ROS node is receive-only.
+
+**Now:** open `./scripts/ros-shell.sh`, then inspect telemetry:
+
+```bash
+ros2 param get /limo_base_node startup_mode
+ros2 topic echo /limo_status --once
+```
+
+**Next:** migrate the YDLIDAR and RealSense drivers to Jazzy, then validate the
+combined bringup. Do not use full bringup below yet. The chassis-only command
+selects `LIMO_BASE_STARTUP_MODE` from its mode argument (default `commanded`); generic
+Compose recreation of `limo-base` retains the historical commanded default.
+Use `./scripts/bring-up-limo-chassis.sh passive` when you want passive operation.
+
+The component changes are in the `src/limo_ros2` working tree. When the owner
+commits them, update its `sources` revision in `config/config.yaml` and the parent
+gitlink together. Builds do not commit or update Git pins.
 
 ## Bring up the latest checked-out version
 

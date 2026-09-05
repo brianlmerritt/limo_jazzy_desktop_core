@@ -48,7 +48,7 @@ services:
       - robot
 
     environment:
-      LIMO_STARTUP_MODE: commanded
+      LIMO_STARTUP_MODE: ${LIMO_BASE_STARTUP_MODE:-commanded}
 
     stdin_open: false
     tty: false
@@ -56,7 +56,6 @@ services:
 
     command:
       - ./scripts/run-limo-base.sh
-      - commanded
 
   ydlidar:
     extends:

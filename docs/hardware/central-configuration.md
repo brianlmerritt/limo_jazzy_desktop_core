@@ -291,3 +291,11 @@ Existing Humble outputs and udev installation records remain on disk.
 
 See `ROS2_INSTRUCTIONS.md` for the container-only migration commands and the
 remaining hardware package compatibility work before full bringup.
+
+The chassis-only migration helper is `scripts/bring-up-limo-chassis.sh`. It
+translates its mode argument (default `commanded`, optional `passive`) into
+`LIMO_BASE_STARTUP_MODE` for
+Compose, which supplies the component's existing `LIMO_STARTUP_MODE` contract.
+The component remains independent of the framework configuration. Ordinary
+Compose chassis recreation defaults to commanded mode; use `./scripts/bring-up-limo-chassis.sh passive` for
+passive validation. Sensor enablement and running sensor services are unchanged.
