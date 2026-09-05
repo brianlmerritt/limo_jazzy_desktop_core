@@ -11,6 +11,7 @@ platform:
     release: "24.04"
     ros_distribution: jazzy
     compose_service: dev
+    build_jobs: 2
 
 host:
   required_commands:
@@ -134,8 +135,8 @@ sources:
   - name: limo_ros2
     path: src/limo_ros2
     url: https://github.com/brianlmerritt/limo_ros2.git
-    branch: humble_py
-    revision: 83e303d259666c70166731a185ec18293d012488
+    branch: jazzy
+    revision: ec7e0445bafa30e0c07eda49b9d78a85ab38af02
     required: true
   - name: ydlidar_sdk
     path: drivers/ydlidar_sdk
@@ -153,11 +154,11 @@ sources:
     path: drivers/librealsense
     url: https://github.com/realsenseai/librealsense.git
     branch: master
-    revision: e196cefa896e312d79c2df400c7623aa1e9c62ac
+    revision: 5af97a58423ec11822e8d951d37d9c6945a09a24
     required: false
   - name: realsense_ros
     path: src/ros2_devices/realsense_ros
     url: https://github.com/realsenseai/realsense-ros.git
     branch: ros2-master
-    revision: 8a86cb88a428bdefa204759c899b84adc81606ae
+    revision: bafc21080c5c8e259dadbb309797949aee0dd950
     required: false

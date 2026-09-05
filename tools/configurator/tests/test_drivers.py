@@ -121,6 +121,17 @@ class SelectionTest(unittest.TestCase):
         data['platform']['container']['release'] = '24.04'
         self.assertNotEqual(humble_script, build_script(data))
 
+    def test_compiler_parallelism_follows_configuration(self):
+        data = config()
+        data['platform']['container']['build_jobs'] = 3
+        script = build_script(data)
+        self.assertIn('export CMAKE_BUILD_PARALLEL_LEVEL=3', script)
+        self.assertIn('export MAKEFLAGS="-j${CMAKE_BUILD_PARALLEL_LEVEL}"', script)
+        self.assertIn('--parallel "${CMAKE_BUILD_PARALLEL_LEVEL}"', script)
+        self.assertNotIn('$(nproc)', script)
+        del data['platform']['container']['build_jobs']
+        self.assertIn('export CMAKE_BUILD_PARALLEL_LEVEL=2', build_script(data))
+
     def test_all_generated_shell_has_valid_syntax(self):
         for script in (build_script(config()), device_env(config()), udev_env(config())):
             result = subprocess.run(['bash', '-n'], input=script, text=True, capture_output=True)

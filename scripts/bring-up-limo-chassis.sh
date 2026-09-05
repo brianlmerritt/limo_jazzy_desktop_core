@@ -53,4 +53,4 @@ fi
 completed=true
 echo "Jazzy chassis started detached in ${startup_mode} mode. Sensors were not restarted."
 echo "Now: ./scripts/ros-shell.sh"
-echo "Next: migrate the sensor drivers before using full robot bringup."
+echo "For normal chassis and sensor startup: ./scripts/bring_up_limo_base.sh"

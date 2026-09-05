@@ -74,6 +74,12 @@
             "compose_service": {
               "type": "string",
               "pattern": "^[a-z0-9][a-z0-9_-]*$"
+            },
+            "build_jobs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64,
+              "description": "Maximum parallel compiler jobs for sensor SDKs and ROS wrappers; defaults to 2."
             }
           }
         }

@@ -1,6 +1,6 @@
 # Configuration System and Daily Workflow
 
-`config/config.yaml` declares the expected Jetson host, Humble container,
+`config/config.yaml` declares the expected Jetson host, Jazzy container,
 hardware device paths, and Git submodules. `config/config.schema.json` rejects
 unknown or malformed fields before any checks run. It now covers the LIMO base,
 YDLIDAR X2L, front RealSense D435i, and their pinned source repositories.
@@ -67,7 +67,7 @@ An interactive ROS shell is independent of bringup:
 ```
 
 Inside an existing Docker shell, use `source /workspace/scripts/ros-env.sh`.
-This loads Humble, generated SDK paths, and complete installed ROS package setups
+This loads Jazzy, generated SDK paths, and complete installed ROS package setups
 in dependency order. It does not start nodes. See
 [ROS2_INSTRUCTIONS.md](../../ROS2_INSTRUCTIONS.md) for bringup checks and stop commands.
 
@@ -97,9 +97,9 @@ Do not hand-edit generated `.env` values to make a permanent configuration chang
 regeneration replaces them. `.env` contains host UID/GID, resolved device paths,
 availability, and selected runtime values. It is not a ROS component config file.
 
-Builds publish `.deps/sensor-env.sh` and `.deps/driver-build.sha256` only after
+Builds publish `.deps/sensor-env-jazzy.sh` and `.deps/driver-build.sha256` only after
 successful completion. SDKs/build directories live under `.deps/drivers/` and
-`.deps/build/`; ROS outputs use `build/`, `install/`, and `log/`. Startup checks the
+`.deps/build/`; ROS outputs use `build/jazzy/`, `install/jazzy/`, and `log/jazzy/`. Startup checks the
 driver fingerprint and rejects missing/stale builds after selection or pin changes.
 Keep `.deps/udev/`: it records installed rule content/targets for safe updates and
 removal. These generated paths remain untracked.
@@ -107,7 +107,7 @@ removal. These generated paths remain untracked.
 The current adapters support one X2L and one front D435i, with the LIMO UART
 required by the combined deployment. Configuration chooses implemented recipes;
 a new sensor family still needs adapter/schema support. Platform fields do not
-automatically rewrite the Dockerfile or remaining Humble-specific shell paths.
+automatically rewrite the Dockerfile or its selected ROS base image.
 Jazzy migration therefore requires code/image changes and fresh build outputs,
 not just changing `ros_distribution` in YAML. Simulation is not implemented as a
 configuration mode yet.
@@ -139,9 +139,10 @@ local image unless its build inputs change.
 
 ## LIMO serial device
 
-The Humble `limo_base` driver prepends `/dev/` to any `port_name` containing
-`tty`, so the selected ROS parameter is a basename rather than a complete path.
-The configuration accepts both existing repository conventions:
+The chassis driver accepts either a device basename or an absolute `/dev/<name>`
+path. The configuration retains basename-style ROS parameter values for
+compatibility; Compose supplies the resolved absolute device path through the
+component environment. The configuration accepts these repository conventions:
 
 - Preferred persistent alias: `/dev/ttylimo`, passed as `port_name=ttylimo`
 - Native Jetson UART: `/dev/ttyTHS1`, passed as `port_name=ttyTHS1`
@@ -289,8 +290,9 @@ overlay. Unbuilt workspaces can still open a shell with the base ROS installatio
 The build fingerprint changes with platform changes, requiring sensor rebuilds.
 Existing Humble outputs and udev installation records remain on disk.
 
-See `ROS2_INSTRUCTIONS.md` for the container-only migration commands and the
-remaining hardware package compatibility work before full bringup.
+Use `./scripts/bring_up_limo_base.sh` for normal startup; see
+`ROS2_INSTRUCTIONS.md` for details. `platform.container.build_jobs` limits sensor
+compiler parallelism (integer 1–64, default 2) for both SDK and wrapper builds.
 
 The chassis-only migration helper is `scripts/bring-up-limo-chassis.sh`. It
 translates its mode argument (default `commanded`, optional `passive`) into

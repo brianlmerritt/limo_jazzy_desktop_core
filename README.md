@@ -2,9 +2,10 @@
 
 Reproducible ROS 2 development environment and core platform configuration for
 the AgileX LIMO running on NVIDIA Jetson Orin Nano. The current baseline uses
-ROS 2 Jazzy in Ubuntu 24.04; this branch is migrating the hardware stack to Jazzy.
+ROS 2 Jazzy in Ubuntu 24.04.
 
-Jazzy chassis build and passive hardware checks pass. Use `./scripts/bring-up-limo-chassis.sh` for chassis-only startup; sensor migration is next.
+Start the chassis and all enabled sensors with `./scripts/bring_up_limo_base.sh`.
+It manages the builds, container restarts, and commanded chassis startup.
 
 See `ROS2_INSTRUCTIONS.md` for the current container, build, passive check, and
 explicit commanded bringup commands.
@@ -23,9 +24,10 @@ explicit commanded bringup commands.
 
 ## Current safety state
 
-Nonzero motion testing has not yet been performed. Commanded mode is available
-only through the opt-in `limo-base` service and has been checked with an
-all-zero velocity command while the chassis was safely supported.
+Low-speed forward, reverse, and turning wheel commands have been tested with
+the chassis on a stand; odometry responded and explicit stops passed. See
+[the validation record](docs/software/wheel-odometry-validation.md). On-ground
+motion, command timeout, and emergency-stop behavior remain unverified.
 
 The Jetson power wiring is still being completed. The Jetson uses a
 separate 12 V battery from the LIMO chassis supply.

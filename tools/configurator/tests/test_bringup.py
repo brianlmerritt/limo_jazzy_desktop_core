@@ -28,8 +28,14 @@ class BringupTest(unittest.TestCase):
         docker.write_text('''#!/usr/bin/env bash
 printf 'docker %s\n' "$*" >> "$CALL_LOG"
 case "$*" in
+  *'up -d --force-recreate limo-base') echo "chassis-mode=${LIMO_BASE_STARTUP_MODE:-unset}" >> "$CALL_LOG" ;;
   *'ros2.sh node list') echo /limo_base_node ;;
   *'ros2.sh topic info /cmd_vel')
+    if [[ "${TEST_DELAYED_TOPIC:-false}" == true && ! -e "$CALL_LOG.ready" ]]; then
+      touch "$CALL_LOG.ready"
+      echo "Unknown topic '/cmd_vel'" >&2
+      exit 1
+    fi
     echo "Publisher count: ${TEST_PUBLISHERS:-0}"
     echo 'Subscription count: 1' ;;
   *'ros2.sh topic echo --once /limo_status')
@@ -56,6 +62,17 @@ exit 0
         self.assertLess(calls.index('setup.sh start-drivers'), calls.index('up -d --force-recreate limo-base'))
         self.assertNotIn('apply-sources', calls)
         self.assertNotIn('topic pub', calls)
+        self.assertEqual(calls.count(' stop '), 1)
+
+    def test_standard_bringup_overrides_passive_environment(self):
+        result, calls = self.run_bringup(LIMO_BASE_STARTUP_MODE='passive')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('chassis-mode=commanded', calls)
+
+    def test_waits_for_command_subscription_after_node_discovery(self):
+        result, calls = self.run_bringup(TEST_DELAYED_TOPIC='true')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(calls.count('topic info /cmd_vel'), 2)
         self.assertEqual(calls.count(' stop '), 1)
 
     def test_failed_preflight_leaves_existing_services_alone(self):

@@ -11,7 +11,8 @@ enable_infra1: false
 enable_infra2: false
 enable_gyro: false
 enable_accel: false
-pointcloud.enable: true
+# SDK 2.56.4 on ARM64 names its NEON filter pointcloud__neon_.
+pointcloud__neon_.enable: true
 publish_tf: true
 tf_publish_rate: 0.0
 diagnostics_period: 1.0

@@ -1,96 +1,5 @@
 # ROS 2 Jazzy robot bringup
 
-## Jazzy migration status
-
-This branch uses `ros:jazzy-ros-base-noble` (Ubuntu 24.04, ARM64 on the Jetson).
-Ubuntu 24.04 ARM64 is a [supported Jazzy platform](https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Install-Binary.html).
-Container and ROS CLI validation are separate from hardware migration. The
-current sensor source pins are inherited from Humble; in particular the pinned
-RealSense wrapper does not yet accept Jazzy. **Do not run full robot/sensor
-bringup until those packages have been migrated and validated.** The bringup
-instructions below describe the intended workflow after that work.
-
-Build and start just the development container from the host:
-
-```bash
-docker compose build dev
-docker compose up -d --no-deps dev
-./scripts/ros-shell.sh
-```
-
-Existing `.env` device discovery can be reused while hardware stays connected.
-For a fresh checkout, run `./scripts/configure-host-env.sh` first with the
-configured hardware connected. Development startup does not start the robot.
-Close and reopen old shells when changing distributions.
-
-ROS outputs now live in `build/jazzy`, `install/jazzy`, and `log/jazzy`.
-SDK cache keys include the container platform, and SDK shell environments use
-`.deps/sensor-env-jazzy.sh`. Existing Humble outputs and `.deps/udev` are preserved.
-Use `./scripts/build.sh --packages-up-to limo_base` inside the container for the
-a chassis build without restarting hardware. Plain `colcon build` would bypass this output
-layout; use the helper. For package tests use:
-
-```bash
-colcon --log-base log/jazzy test --build-base build/jazzy --install-base install/jazzy
-colcon test-result --test-result-base build/jazzy --verbose
-```
-
-
-Validation on 2026-09-05: the ARM64 Jazzy Desktop image built successfully and
-`dev` started with the configured NVIDIA runtime. An isolated container passed
-ROS CLI/package checks and a talker-to-subscriber message exchange. Automatic
-shell sourcing and all 53 configuration/script tests passed. This does not yet
-validate RViz rendering or sensor packages under Jazzy. The
-existing Humble chassis and sensor services were left running during validation.
-
-## Chassis-only Jazzy bringup (available now)
-
-The chassis-only launcher defaults to **commanded mode**, with a `/cmd_vel`
-subscription. Cancel any waiting velocity publisher before starting it.
-From the host repository, with Docker running and chassis power on:
-
-```bash
-# Optional clean restart; this also stops any running sensor services.
-docker compose --profile robot --profile sensors down
-./scripts/bring-up-limo-chassis.sh
-```
-
-The script starts `dev` if needed, builds the chassis packages, and starts the
-chassis detached in commanded mode. It does not repeat the already completed
-passive diagnostic. It checks the selected mode and command interface. It does
-not start sensors or publish velocity commands. For receive-only diagnostics:
-
-```bash
-./scripts/bring-up-limo-chassis.sh passive
-```
-
-Build failures leave the previous chassis running; failures after the stop leave
-the chassis stopped. Closing the terminal does not stop successful bringup.
-
-Validation on 2026-09-05 passed for `/limo_status`, `/imu`, `/wheel/odom`, nonzero
-battery voltage, zero chassis error code, and clean SIGINT shutdown. The Jazzy
-shutdown exception was fixed in `src/limo_ros2`. All six reported package tests
-and 54 framework tests passed. Existing unused-variable warnings remain.
-Passive mode does not reset the controller's previously selected control mode;
-`control_mode: 1` can still appear while the ROS node is receive-only.
-
-**Now:** open `./scripts/ros-shell.sh`, then inspect telemetry:
-
-```bash
-ros2 param get /limo_base_node startup_mode
-ros2 topic echo /limo_status --once
-```
-
-**Next:** migrate the YDLIDAR and RealSense drivers to Jazzy, then validate the
-combined bringup. Do not use full bringup below yet. The chassis-only command
-selects `LIMO_BASE_STARTUP_MODE` from its mode argument (default `commanded`); generic
-Compose recreation of `limo-base` retains the historical commanded default.
-Use `./scripts/bring-up-limo-chassis.sh passive` when you want passive operation.
-
-The component changes are in the `src/limo_ros2` working tree. When the owner
-commits them, update its `sources` revision in `config/config.yaml` and the parent
-gitlink together. Builds do not commit or update Git pins.
-
 ## Bring up the latest checked-out version
 
 Power the LIMO chassis and keep the robot safely supported before starting
@@ -100,13 +9,12 @@ commanded mode. From the repository root, run:
 ./scripts/bring_up_limo_base.sh
 ```
 
-The existing script now brings up the chassis **and enabled sensors**. It checks
+The script brings up the chassis **and enabled sensors**. It checks
 configured source pins, installs/updates sensor udev rules (sudo), discovers
 devices, stops existing chassis/sensor services, rebuilds the image and LIMO
 packages, builds selected sensor drivers, and starts the sensors before commanded
 chassis bringup. It checks chassis discovery, `/cmd_vel`, control mode, and errors
-without publishing a velocity command. Sensor service startup is not a substitute
-for checking live sensor data with the commands below.
+without publishing a velocity command. The script returns to the host prompt after startup.
 
 Bringup does **not** open a shell or attach to the running robot. Containers run
 in detached mode; once readiness checks finish the script returns to your host
@@ -306,3 +214,45 @@ The Ubuntu 24.04 host contains hardware access, Docker, and JetPack support.
 ROS 2 Jazzy and its development dependencies run in the Ubuntu 24.04
 containers. The development and robot services share host network and IPC
 namespaces so ROS 2 discovery works between them.
+
+## Build layout and optional chassis diagnostics
+
+ROS outputs are isolated in `build/jazzy`, `install/jazzy`, and `log/jazzy`.
+Sensor SDK environments use `.deps/sensor-env-jazzy.sh`; SDK cache hashes include
+source revisions and the container platform. Humble outputs remain untouched.
+`platform.container.build_jobs` controls sensor compiler parallelism (2 on this
+8 GB Jetson). Use framework build helpers to preserve these paths.
+
+The standard startup is always `./scripts/bring_up_limo_base.sh`. For deliberate
+chassis-only diagnosis, `./scripts/bring-up-limo-chassis.sh passive` is still
+available; it is not a prerequisite for normal startup. Passive mode has no
+`/cmd_vel` subscription and does not reset the controller's remembered mode.
+The earlier Jazzy shutdown crash was fixed and covered by a virtual serial test.
+
+The RealSense SDK is pinned to 2.56.4 and its ROS wrapper to 4.56.4, which includes
+[Jazzy support](https://github.com/realsenseai/realsense-ros/releases/tag/4.56.4).
+The YDLIDAR wrapper retains its configured upstream `humble` branch label and
+exact source pin; the branch label does not choose the build's ROS distribution.
+
+## Validation record (2026-09-05)
+
+After removing all Compose containers, `./scripts/bring_up_limo_base.sh` completed
+successfully with the chassis, LiDAR, and RealSense all on the Jazzy image.
+Commanded mode reported one `/cmd_vel` subscriber, zero publishers, and chassis
+`error_code: 0`. A 15-second subscriber check received fresh messages on `/scan`,
+`/point_cloud`, `/camera/front/color/image_raw`,
+`/camera/front/depth/color/points`, `/imu`, `/wheel/odom`, and `/limo_status`.
+The camera image and cloud each delivered over 200 messages in that check.
+All 57 framework regression tests passed. No velocity command was published.
+
+The startup readiness check now waits for `/cmd_vel` discovery after discovering
+the node. Camera config uses `pointcloud__neon_.enable` for the pinned ARM64 SDK;
+see `docs/hardware/sensors.md`. USB control-transfer warnings appeared during
+camera startup but did not prevent the verified image/depth/cloud streams.
+This was a startup and short streaming check, not a long-duration soak test.
+
+A subsequent user-authorized wheel test on the stand exercised forward, reverse,
+and both turning directions. Odometry feedback and explicit stops passed;
+see [the recorded results](docs/software/wheel-odometry-validation.md).
+Pose heading uses the IMU and therefore stays nearly fixed during lifted-wheel
+turning. The test does not validate the controller's command timeout.

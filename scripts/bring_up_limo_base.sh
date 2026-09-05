@@ -60,7 +60,7 @@ echo "[8/9] Starting configured sensor services..."
 ./scripts/setup.sh start-drivers
 
 echo "[9/9] Starting and checking commanded chassis bringup..."
-docker compose --profile robot up -d --force-recreate limo-base
+LIMO_BASE_STARTUP_MODE=commanded docker compose --profile robot up -d --force-recreate limo-base
 
 node_found=false
 for _ in {1..20}; do
@@ -77,18 +77,26 @@ if [[ "$node_found" != true ]]; then
   false
 fi
 
-cmd_vel_info="$(
-  docker compose exec -T dev ./scripts/ros2.sh topic info /cmd_vel
-)"
+# DDS may discover the node before its endpoints. Wait for the command
+# subscription instead of treating a transient "Unknown topic" as failure.
+cmd_vel_ready=false
+cmd_vel_info=""
+for _ in {1..20}; do
+  if cmd_vel_info="$(docker compose exec -T dev ./scripts/ros2.sh topic info /cmd_vel 2>/dev/null)"; then
+    if ! grep -Fxq "Publisher count: 0" <<<"$cmd_vel_info"; then
+      echo "Unexpected /cmd_vel publisher detected." >&2
+      false
+    fi
+    if grep -Fxq "Subscription count: 1" <<<"$cmd_vel_info"; then
+      cmd_vel_ready=true
+      break
+    fi
+  fi
+  sleep 1
+done
 echo "$cmd_vel_info"
-
-if ! grep -Fxq "Publisher count: 0" <<<"$cmd_vel_info"; then
-  echo "Unexpected /cmd_vel publisher detected." >&2
-  false
-fi
-
-if ! grep -Fxq "Subscription count: 1" <<<"$cmd_vel_info"; then
-  echo "Expected one /cmd_vel subscriber." >&2
+if [[ "$cmd_vel_ready" != true ]]; then
+  echo "Timed out waiting for one /cmd_vel subscriber." >&2
   false
 fi
 

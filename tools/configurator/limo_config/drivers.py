@@ -296,7 +296,9 @@ def build_script(config: dict) -> str:
     distro = config['platform']['container']['ros_distribution']
     sources = {source['name']: source for source in config['sources']}
     lines = ['#!/usr/bin/env bash', 'set -euo pipefail', 'cd /workspace',
-             'set +u', command('source', '/opt/ros/' + config['platform']['container']['ros_distribution'] + '/setup.bash'), 'set -u']
+             'set +u', command('source', '/opt/ros/' + config['platform']['container']['ros_distribution'] + '/setup.bash'), 'set -u',
+             command('export', 'CMAKE_BUILD_PARALLEL_LEVEL=' + str(config['platform']['container'].get('build_jobs', 2))),
+             'export MAKEFLAGS="-j${CMAKE_BUILD_PARALLEL_LEVEL}"']
     prefixes = []
     for name, driver in active_drivers(config).items():
         sdk = sources[driver['sources']['sdk']]
@@ -318,7 +320,7 @@ def build_script(config: dict) -> str:
             options += ['-DBUILD_GRAPHICAL_EXAMPLES=OFF', '-DBUILD_TOOLS=OFF', '-DBUILD_WITH_CUDA=OFF', '-DFORCE_RSUSB_BACKEND=ON']
             packages = ['realsense2_camera_msgs', 'realsense2_description', 'realsense2_camera']
         lines += [command('cmake', '-S', sdk['path'], '-B', build, *options),
-                  command('cmake', '--build', build, '--parallel') + ' "$(nproc)"',
+                  command('cmake', '--build', build, '--parallel') + ' "${CMAKE_BUILD_PARALLEL_LEVEL}"',
                   command('cmake', '--install', build),
                   f'export CMAKE_PREFIX_PATH={shlex.quote(prefix)}"${{CMAKE_PREFIX_PATH:+:${{CMAKE_PREFIX_PATH}}}}"',
                   # The pinned YDLIDAR SDK exports an empty library-directory list.

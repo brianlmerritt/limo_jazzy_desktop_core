@@ -18,9 +18,9 @@ under `src/ros2_devices/`:
 | Path | Purpose | Pinned revision |
 | --- | --- | --- |
 | `drivers/ydlidar_sdk` | YDLidar userspace SDK | `ad8e30f9e9315d4bd7544df85571072fdbcd31ea` (V1.2.7) |
-| `src/ros2_devices/ydlidar_ros2_driver` | ROS 2 Humble wrapper | `4ef70d3f32a85704ade0be54b214f3763b1ab3e8` |
-| `drivers/librealsense` | RealSense userspace SDK | `e196cefa896e312d79c2df400c7623aa1e9c62ac` (v2.55.1) |
-| `src/ros2_devices/realsense_ros` | ROS 2 wrapper matched to SDK 2.55.1 | `8a86cb88a428bdefa204759c899b84adc81606ae` (4.55.1) |
+| `src/ros2_devices/ydlidar_ros2_driver` | ROS 2 wrapper (upstream branch label: humble) | `4ef70d3f32a85704ade0be54b214f3763b1ab3e8` |
+| `drivers/librealsense` | RealSense userspace SDK | `5af97a58423ec11822e8d951d37d9c6945a09a24` (v2.56.4) |
+| `src/ros2_devices/realsense_ros` | ROS 2 wrapper matched to SDK 2.56.4 | `bafc21080c5c8e259dadbb309797949aee0dd950` (4.56.4) |
 
 `config/config.yaml` owns the URLs, source paths, and exact revisions. The
 `drivers` entries map the `ydlidar` and `realsense` build recipes to their SDK
@@ -121,7 +121,7 @@ no host Python dependencies are installed. Native SDKs use isolated prefixes und
 ignored `.deps/drivers/`, and only selected ROS wrappers are built with colcon. Their CMake caches are
 refreshed so changed SDK prefixes do not retain old dependency selections.
 The RealSense recipe uses `FORCE_RSUSB_BACKEND=ON`. A successful build atomically
-publishes `.deps/sensor-env.sh` and `.deps/driver-build.sha256`; startup refuses
+publishes `.deps/sensor-env-jazzy.sh` and `.deps/driver-build.sha256`; startup refuses
 missing or stale builds after driver selection or pin changes. Old prefixes are
 retained rather than deleted. `scripts/build-sensors.sh` is a host-side alias;
 replace old `docker compose exec ... build-sensors.sh` commands with
@@ -212,7 +212,7 @@ work. Sensor data smoke tests remain separate from chassis readiness checks.
 
 `./scripts/ros-shell.sh` opens an interactive Docker shell with ROS ready.
 `source /workspace/scripts/ros-env.sh` loads the same environment in an existing
-container shell. The shared loader sources Humble, optional built sensor SDK
+container shell. The shared loader sources Jazzy, optional built sensor SDK
 paths, and complete installed package setups in colcon dependency order, so newly built packages become
 available without editing shell scripts. Startup still follows config enablement;
 the shell can see all installed packages. Missing workspace setup is an error.
@@ -272,3 +272,20 @@ The explicit SDK selector overrides YAML `serial_no`. This avoids the upstream
 launch file's separate name defaults and parameter-file precedence. With the
 front profile, camera topics appear below `/camera/front/`, including
 `depth/color/points` when point clouds are enabled. There is no `/camera` topic.
+
+## Jazzy on ARM64: point-cloud filter parameter
+
+The pinned SDK 2.56.4 uses the processing-block name `Pointcloud (NEON)` on ARM64.
+Wrapper 4.56.4 derives its native ROS parameter prefix from that name, so this
+Jetson's camera config uses `pointcloud__neon_.enable: true`. The older
+`pointcloud.enable` key is not declared by this build and does not enable its
+publisher. This changes the parameter name, not the output topic:
+`/camera/front/depth/color/points` remains a `sensor_msgs/msg/PointCloud2` stream.
+Recheck the native parameter names when changing the SDK/wrapper pins or CPU
+architecture. Run the usual `./scripts/bring_up_limo_base.sh` to apply the config.
+
+Full Jazzy startup validation on 2026-09-05 passed after Compose shutdown using
+only `./scripts/bring_up_limo_base.sh`. The 15-second stream check received 216
+color images and 215 camera point clouds with distinct timestamps, alongside
+LiDAR and chassis telemetry. Startup USB control-transfer warnings remain;
+long-duration streaming stability was not established by this short check.
