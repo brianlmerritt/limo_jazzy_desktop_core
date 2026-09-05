@@ -2,9 +2,11 @@
 build/
 install/
 log/
+.deps/
 
 # Host-specific container identity
 .env
+.env.*
 
 # Python
 __pycache__/

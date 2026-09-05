@@ -37,9 +37,58 @@ ros2 node list
 ros2 topic list
 ```
 
+## Bring up the LiDAR and front camera
+
+Non-ROS SDKs live in `drivers/`; ROS sensor packages live in
+`src/ros2_devices/`. The existing chassis fork remains in `src/limo_ros2/`.
+The sensor sources, enabled devices, and driver selection are declared in
+`config/config.yaml`. Run these commands on the **host**, from the repository
+root. Power the LIMO chassis and connect the configured LiDAR and camera first.
+
+```bash
+./scripts/setup.sh validate
+./scripts/setup.sh plan-sources
+# Registers/updates configured submodules in the agreed parent folders.
+./scripts/setup.sh apply-sources
+./scripts/configure-sensor-udev.sh install all
+./scripts/configure-sensor-udev.sh check all
+./scripts/configure-host-env.sh
+docker compose build dev
+docker compose up -d --force-recreate dev
+./scripts/setup.sh build-drivers
+./scripts/setup.sh start-drivers
+```
+
+Review the staged source changes with `git diff --cached`. No commit or push is
+automatic. `build-drivers` builds only drivers selected by enabled sensor devices.
+`start-drivers` checks the build fingerprint, refreshes discovery, stops disabled
+or unavailable optional sensors, and recreates dev and the selected sensor
+services. It interrupts existing dev shells, but does not start the chassis
+service. See `docs/hardware/sensors.md` for source-update safeguards and udev
+verification/rollback.
+
+After changing source pins, repeat `plan-sources`, `apply-sources`,
+`build-drivers`, and `start-drivers`. After changing sensor identities, reinstall
+the rules and run `start-drivers`. After reconnection or runtime parameter changes,
+run `start-drivers` again. Set a sensor's `enabled` to `false` to exclude it from
+source/build selection; rebuild and restart to apply that selection. Its checkout
+is retained. For deliberate removal, disable the consuming device, set its source
+entries to `state: absent` with `required: false`, then run `plan-sources` and
+`apply-sources`. This also deletes their matching `.git/modules/` caches after
+checking for local changes and local-only commits.
+
+Check for a LiDAR scan and the namespaced camera topics without commanding the
+chassis:
+
+```bash
+docker compose exec dev ./scripts/ros2.sh topic echo --once /scan
+docker compose exec dev ./scripts/ros2.sh topic list | rg '^/camera/front/'
+```
+
 ## Stop the robot
 
 ```bash
+docker compose --profile sensors stop ydlidar realsense
 docker compose stop limo-base
 ```
 

@@ -47,8 +47,9 @@ The LIMO chassis—not only the Jetson—must be powered before serial-device te
 
 ## Central configuration checks
 
-The expected Ubuntu host, Humble container, LIMO serial paths, and source
-submodules are declared in `config/config.yaml` and validated inside Docker:
+The expected Ubuntu host, Humble container, chassis and sensor identities, and
+source submodules are declared in `config/config.yaml` and validated inside
+Docker:
 
 ```bash
 ./scripts/setup.sh validate
@@ -75,6 +76,13 @@ non-motion hardware check. Commanded operation must be selected explicitly.
 The opt-in `limo-base` service under the Compose `robot` profile provides
 lifecycle-managed commanded bringup when motion control is intended.
 
+The connected YDLIDAR X2L and front Intel RealSense D435i have tracked device
+identities, safe udev rules, ROS parameter files, Compose services, and
+container-only SDK builds. Their SDKs and ROS wrappers are configured as four
+pinned, separate submodules under `drivers/` (SDKs) and `src/ros2_devices/` (ROS wrappers); see `docs/hardware/sensors.md` for
+the configuration-driven registration commands, host setup and rollback, and passive
+smoke tests.
+
 Generate the ignored environment file before using Compose, then build the base
 driver and its dependencies inside the container:
 
@@ -86,3 +94,13 @@ docker compose exec dev ./scripts/build.sh --packages-up-to limo_base
 
 The environment is present in Dev Container shells and normal Compose commands.
 An explicit ROS `port_name` or `baud_rate` parameter still takes precedence.
+
+## Configured sensor drivers
+
+YDLIDAR and Intel RealSense driver recipes are declared in `config/config.yaml`.
+From the host, use `./scripts/setup.sh plan-sources` to inspect required source
+changes and run `./scripts/setup.sh apply-sources` to register/update
+submodules at their configured pins. Then `./scripts/setup.sh build-drivers`
+builds enabled sensor drivers in Docker and `./scripts/setup.sh start-drivers`
+refreshes discovery and starts their services. The complete first-run sequence,
+including host access rules and passive checks, is in [ROS2_INSTRUCTIONS.md](ROS2_INSTRUCTIONS.md).

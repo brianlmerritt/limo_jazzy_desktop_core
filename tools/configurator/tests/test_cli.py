@@ -29,6 +29,7 @@ def device_config() -> dict:
                     "alias_path": "/dev/ttylimo",
                     "rule_source": "config/robot/99-limo-serial.rules",
                     "rule_target": "/etc/udev/rules.d/99-limo-serial.rules",
+                    "setup_command": "scripts/configure-limo-udev.sh install",
                     "match": {
                         "kernel": "ttyTHS1",
                         "parent_kernel": "3100000.serial",
@@ -96,6 +97,59 @@ class DeviceChecksTest(unittest.TestCase):
         self.assertTrue(report.has_failures)
         messages = [message for _, message in report.items]
         self.assertTrue(any("Power up the LIMO chassis" in message for message in messages))
+
+    def test_sensor_serial_device_does_not_require_startup_mode(self) -> None:
+        config = device_config()
+        sensor = config["devices"]["limo_base"].copy()
+        sensor["ros_parameter"] = {"name": "port", "value_style": "path"}
+        sensor.pop("startup_mode")
+        config["devices"] = {"ydlidar_x2l": sensor}
+
+        errors = _semantic_errors(config)
+
+        self.assertFalse(any("startup_mode" in error for error in errors))
+
+    def test_literal_ros_parameter_uses_configured_value(self) -> None:
+        config = device_config()
+        config["devices"] = {
+            "camera": {
+                "type": "usb",
+                "required": True,
+                "preferred_path": "/dev/camera",
+                "accepted_paths": [{"path": "/dev/camera", "kind": "alias"}],
+                "ros_parameter": {
+                    "name": "serial_no",
+                    "value_style": "literal",
+                    "value": "123456",
+                },
+                "usb_identity": {
+                    "vendor_id": "8086",
+                    "product_id": "0b3a",
+                    "serial": "123456",
+                },
+            }
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            device_root = Path(directory)
+            (device_root / "camera").touch()
+            report = check_devices(config, device_root)
+
+        self.assertFalse(report.has_failures)
+        messages = [message for _, message in report.items]
+        self.assertTrue(any("serial_no=123456" in message for message in messages))
+        self.assertTrue(any("8086:0b3a" in message for message in messages))
+
+    def test_literal_ros_parameter_requires_value(self) -> None:
+        config = device_config()
+        config["devices"]["limo_base"]["ros_parameter"] = {
+            "name": "serial_no",
+            "value_style": "literal",
+        }
+
+        errors = _semantic_errors(config)
+
+        self.assertTrue(any("required for literal" in error for error in errors))
 
 
 if __name__ == "__main__":

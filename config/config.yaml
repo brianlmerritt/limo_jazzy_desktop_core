@@ -24,6 +24,18 @@ host:
   docker:
     nvidia_runtime_required: true
 
+drivers:
+  ydlidar:
+    build_recipe: ydlidar
+    sources:
+      sdk: ydlidar_sdk
+      ros: ydlidar_ros2_driver
+  realsense:
+    build_recipe: realsense
+    sources:
+      sdk: librealsense
+      ros: realsense_ros
+
 devices:
   limo_base:
     type: serial
@@ -47,16 +59,105 @@ devices:
       alias_path: /dev/ttylimo
       rule_source: config/robot/99-limo-serial.rules
       rule_target: /etc/udev/rules.d/99-limo-serial.rules
+      setup_command: scripts/configure-limo-udev.sh install
       match:
         kernel: ttyTHS1
         parent_kernel: 3100000.serial
       reason: Preserve the ttylimo name used by existing LIMO software for the verified Orin Nano UART.
     availability_note: Power up the LIMO chassis, not only the Jetson, before device checks.
 
+  ydlidar_x2l:
+    enabled: true
+    driver: ydlidar
+    type: serial
+    model: YDLIDAR X2L
+    required: true
+    preferred_path: /dev/ydlidar
+    container_path: /dev/ydlidar
+    baud_rate: 115200
+    accepted_paths:
+      - path: /dev/ydlidar
+        kind: alias
+      - path: /dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0
+        kind: native
+      - path: /dev/ttyUSB0
+        kind: fallback
+    ros_parameter:
+      name: port
+      value_style: path
+    ros_config: config/lidar/ydlidar-x2l.yaml
+    usb_identity:
+      vendor_id: 10c4
+      product_id: ea60
+      serial: "0001"
+    alias_setup:
+      enabled: true
+      alias_path: /dev/ydlidar
+      rule_source: config/lidar/99-ydlidar-x2l.rules
+      rule_target: /etc/udev/rules.d/99-ydlidar-x2l.rules
+      setup_command: scripts/configure-sensor-udev.sh install ydlidar
+      match:
+        vendor_id: 10c4
+        product_id: ea60
+        serial: "0001"
+      reason: Give the LIMO X2L a persistent, non-world-writable serial alias.
+    availability_note: Connect and power the LIMO YDLIDAR X2L before device checks.
+
+  realsense_front:
+    enabled: true
+    driver: realsense
+    type: usb
+    model: Intel RealSense D435i
+    required: true
+    preferred_path: /dev/v4l/by-id/usb-Intel_R__RealSense_TM__Depth_Camera_435i_Intel_R__RealSense_TM__Depth_Camera_435i_948123050084-video-index0
+    container_path: /dev/bus/usb
+    accepted_paths:
+      - path: /dev/v4l/by-id/usb-Intel_R__RealSense_TM__Depth_Camera_435i_Intel_R__RealSense_TM__Depth_Camera_435i_948123050084-video-index0
+        kind: alias
+    ros_parameter:
+      name: serial_no
+      value_style: literal
+      value: "948123050084"
+    ros_config: config/cameras/realsense-d435i-front.yaml
+    usb_identity:
+      vendor_id: "8086"
+      product_id: 0b3a
+      serial: "948123050084"
+    access_setup:
+      rule_source: config/cameras/99-realsense-d435i-front.rules
+      rule_target: /etc/udev/rules.d/99-realsense-d435i-front.rules
+      setup_command: scripts/configure-sensor-udev.sh install realsense
+      reason: Grant the plugdev group access to this D435i USB device and HID interface.
+    availability_note: Connect the front D435i directly through a SuperSpeed USB path before device checks.
+
 sources:
   - name: limo_ros2
     path: src/limo_ros2
     url: https://github.com/brianlmerritt/limo_ros2.git
-    branch: humble
-    revision: dcc5a8637f83236ed6778af86ad826e46a20cd92
+    branch: humble_py
+    revision: 83e303d259666c70166731a185ec18293d012488
     required: true
+  - name: ydlidar_sdk
+    path: drivers/ydlidar_sdk
+    url: https://github.com/YDLIDAR/YDLidar-SDK.git
+    branch: master
+    revision: ad8e30f9e9315d4bd7544df85571072fdbcd31ea
+    required: false
+  - name: ydlidar_ros2_driver
+    path: src/ros2_devices/ydlidar_ros2_driver
+    url: https://github.com/YDLIDAR/ydlidar_ros2_driver.git
+    branch: humble
+    revision: 4ef70d3f32a85704ade0be54b214f3763b1ab3e8
+    required: false
+  - name: librealsense
+    path: drivers/librealsense
+    url: https://github.com/realsenseai/librealsense.git
+    branch: master
+    revision: e196cefa896e312d79c2df400c7623aa1e9c62ac
+    required: false
+  - name: realsense_ros
+    path: src/ros2_devices/realsense_ros
+    url: https://github.com/realsenseai/realsense-ros.git
+    branch: ros2-master
+    revision: 8a86cb88a428bdefa204759c899b84adc81606ae
+    required: false

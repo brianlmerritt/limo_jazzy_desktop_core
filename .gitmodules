@@ -1,3 +1,15 @@
 [submodule "src/limo_ros2"]
 	path = src/limo_ros2
 	url = https://github.com/brianlmerritt/limo_ros2.git
+[submodule "drivers/ydlidar_sdk"]
+	path = drivers/ydlidar_sdk
+	url = https://github.com/YDLIDAR/YDLidar-SDK.git
+[submodule "src/ros2_devices/ydlidar_ros2_driver"]
+	path = src/ros2_devices/ydlidar_ros2_driver
+	url = https://github.com/YDLIDAR/ydlidar_ros2_driver.git
+[submodule "drivers/librealsense"]
+	path = drivers/librealsense
+	url = https://github.com/realsenseai/librealsense.git
+[submodule "src/ros2_devices/realsense_ros"]
+	path = src/ros2_devices/realsense_ros
+	url = https://github.com/realsenseai/realsense-ros.git

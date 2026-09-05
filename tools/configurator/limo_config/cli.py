@@ -54,11 +54,13 @@ def _semantic_errors(config: dict[str, Any]) -> list[str]:
     for name, device in config.get("devices", {}).items():
         accepted = [item["path"] for item in device["accepted_paths"]]
         if device["type"] == "serial":
-            for required_field in ("container_path", "baud_rate", "startup_mode"):
+            for required_field in ("container_path", "baud_rate"):
                 if required_field not in device:
                     errors.append(
                         f"devices.{name}.{required_field} is required for serial devices"
                     )
+        if device["type"] == "usb" and "usb_identity" not in device:
+            errors.append(f"devices.{name}.usb_identity is required for USB devices")
         if len(accepted) != len(set(accepted)):
             errors.append(f"devices.{name}.accepted_paths contains duplicate paths")
         if device["preferred_path"] not in accepted:
@@ -82,6 +84,15 @@ def _semantic_errors(config: dict[str, Any]) -> list[str]:
             errors.append(
                 f"devices.{name}.alias_setup.alias_path must be preferred_path when enabled"
             )
+        parameter = device["ros_parameter"]
+        if parameter["value_style"] == "literal" and "value" not in parameter:
+            errors.append(
+                f"devices.{name}.ros_parameter.value is required for literal values"
+            )
+        if parameter["value_style"] != "literal" and "value" in parameter:
+            errors.append(
+                f"devices.{name}.ros_parameter.value is only valid for literal values"
+            )
 
     source_names: set[str] = set()
     source_paths: set[str] = set()
@@ -93,6 +104,8 @@ def _semantic_errors(config: dict[str, Any]) -> list[str]:
         source_names.add(source["name"])
         source_paths.add(source["path"])
 
+    from .drivers import semantic_errors
+    errors.extend(semantic_errors(config))
     return errors
 
 
@@ -119,7 +132,7 @@ def load_config(config_path: Path, schema_path: Path) -> dict[str, Any]:
         for error in validation_errors
     ]
 
-    if isinstance(config, dict):
+    if isinstance(config, dict) and not validation_errors:
         messages.extend(_semantic_errors(config))
 
     if messages:
@@ -187,6 +200,8 @@ def check_devices(config: dict[str, Any], device_root: Path) -> Report:
     report = Report()
 
     for name, device in config["devices"].items():
+        if not device.get("enabled", True):
+            continue
         available: list[dict[str, str]] = []
         for candidate in device["accepted_paths"]:
             if _host_device_path(candidate["path"], device_root).exists():
@@ -227,19 +242,34 @@ def check_devices(config: dict[str, Any], device_root: Path) -> Report:
             )
 
         parameter = device["ros_parameter"]
-        value = device.get("container_path", selected["path"])
+        if parameter["value_style"] == "literal":
+            value = parameter["value"]
+        else:
+            value = device.get("container_path", selected["path"])
         if parameter["value_style"] == "basename":
             value = PurePosixPath(value).name
         report.pass_(
             f"Device '{name}' ROS parameter selection: "
             f"{parameter['name']}={value}."
         )
-        if device["type"] == "serial":
+        if device["type"] == "serial" and "startup_mode" in device:
             report.pass_(
                 f"Device '{name}' serial environment: "
                 f"LIMO_SERIAL_PORT={device['container_path']}, "
                 f"LIMO_SERIAL_BAUD={device['baud_rate']}, "
                 f"LIMO_STARTUP_MODE={device['startup_mode']}."
+            )
+        elif device["type"] == "serial":
+            report.pass_(
+                f"Device '{name}' serial baud rate: {device['baud_rate']}."
+            )
+
+        usb_identity = device.get("usb_identity")
+        if usb_identity:
+            report.pass_(
+                f"Device '{name}' USB identity: "
+                f"{usb_identity['vendor_id']}:{usb_identity['product_id']} "
+                f"serial={usb_identity['serial']}."
             )
 
         alias_setup = device.get("alias_setup")
@@ -248,12 +278,19 @@ def check_devices(config: dict[str, Any], device_root: Path) -> Report:
                 report.warn(
                     f"Alias {alias_setup['alias_path']} for '{name}' is configured by "
                     f"{alias_setup['rule_source']} but is not active; run "
-                    "scripts/configure-limo-udev.sh install on the host."
+                    f"{alias_setup['setup_command']} on the host."
                 )
             else:
                 report.warn(
                     f"Alias setup for '{name}' remains disabled: {alias_setup['reason']}"
                 )
+
+        access_setup = device.get("access_setup")
+        if access_setup:
+            report.pass_(
+                f"Device '{name}' host access rule is managed by "
+                f"{access_setup['setup_command']}."
+            )
 
     return report
 
@@ -281,7 +318,9 @@ def check_sources(config: dict[str, Any], workspace: Path) -> Report:
     report = Report()
     workspace = workspace.resolve()
 
-    for source in config["sources"]:
+    from .drivers import selected_sources
+
+    for source in selected_sources(config):
         source_path = (workspace / source["path"]).resolve()
         try:
             source_path.relative_to(workspace)
@@ -291,10 +330,9 @@ def check_sources(config: dict[str, Any], workspace: Path) -> Report:
 
         if not source_path.is_dir():
             message = f"Source '{source['name']}' is missing at {source['path']}."
-            if source["required"]:
-                report.fail(message)
-            else:
-                report.warn(message)
+            # Selection includes independently required sources and every active
+            # driver dependency, even when the corresponding hardware is optional.
+            report.fail(message)
             continue
 
         head = _run_git(["rev-parse", "HEAD"], source_path)
@@ -408,6 +446,24 @@ def check_sources(config: dict[str, Any], workspace: Path) -> Report:
                 f"{source['url']}, found {configured_url or 'no URL'}."
             )
 
+    for source in config['sources']:
+        if source.get('state') != 'absent':
+            continue
+        path = source['path']
+        index = _run_git(['ls-files', '--stage', '--', path], workspace)
+        modules = _run_git(['config', '--file', '.gitmodules', '--get-regexp',
+                            r'^submodule\..*\.path$'], workspace)
+        cache_result = _run_git(['rev-parse', '--git-path', 'modules/' + path], workspace)
+        cache = Path(cache_result.stdout.strip())
+        if not cache.is_absolute():
+            cache = workspace / cache
+        registered = any(line.partition(' ')[2] == path for line in modules.stdout.splitlines())
+        if index.returncode or modules.returncode not in (0, 1) or cache_result.returncode:
+            report.fail(f"Cannot verify absent source '{source['name']}'.")
+        elif (workspace / path).exists() or index.stdout.strip() or registered or cache.exists():
+            report.fail(f"Source '{source['name']}' is configured absent but checkout, registration, or Git cache remains.")
+        else:
+            report.pass_(f"Source '{source['name']}' is absent, including its standard Git cache.")
     return report
 
 
@@ -454,11 +510,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    for command in ("validate", "host-arguments"):
+    for command in ("validate", "host-arguments", "driver-service", "driver-build-id", "driver-services", "build-driver-script", "device-env", "sensor-udev-env"):
         command_parser = subparsers.add_parser(command)
         _add_common_arguments(command_parser)
 
-    for command in ("check", "check-sources", "check-devices"):
+    for command in ("check", "check-sources", "check-devices", "plan-sources"):
         command_parser = subparsers.add_parser(command)
         _add_common_arguments(command_parser)
         command_parser.add_argument(
@@ -496,6 +552,14 @@ def main() -> int:
     if arguments.command == "host-arguments":
         print_host_arguments(config)
         return 0
+
+    from .drivers import dispatch
+    try:
+        if dispatch(arguments, config):
+            return 0
+    except (ConfigError, OSError, ValueError) as error:
+        print(f"[FAIL] {error}", file=sys.stderr)
+        return 1
 
     report = Report()
     if arguments.command == "check":

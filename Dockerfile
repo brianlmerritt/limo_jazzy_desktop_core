@@ -13,9 +13,15 @@ RUN apt-get update && \
         ros-dev-tools \
         python3-vcstool \
         python3-colcon-common-extensions \
+        build-essential \
+        cmake \
         git \
         sudo \
         bash-completion \
+        libssl-dev \
+        libusb-1.0-0-dev \
+        libudev-dev \
+        pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \

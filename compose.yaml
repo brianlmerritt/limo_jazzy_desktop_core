@@ -58,6 +58,58 @@ services:
       - ./scripts/run-limo-base.sh
       - commanded
 
+  ydlidar:
+    extends:
+      service: dev
+
+    container_name: limo_ydlidar
+
+    profiles:
+      - sensors
+
+    environment:
+      YDLIDAR_AVAILABLE: ${YDLIDAR_AVAILABLE:-false}
+      YDLIDAR_CONTAINER_PATH: ${YDLIDAR_CONTAINER_PATH:-/dev/ydlidar}
+      YDLIDAR_BAUD: ${YDLIDAR_BAUD:-115200}
+      YDLIDAR_ROS_CONFIG: ${YDLIDAR_ROS_CONFIG:-}
+
+    devices:
+      - ${YDLIDAR_HOST_DEVICE:-/dev/null}:${YDLIDAR_CONTAINER_PATH:-/dev/ydlidar}
+
+    stdin_open: false
+    tty: false
+    restart: "no"
+
+    command:
+      - ./scripts/run-ydlidar.sh
+
+  realsense:
+    extends:
+      service: dev
+
+    container_name: limo_realsense
+
+    profiles:
+      - sensors
+
+    environment:
+      REALSENSE_AVAILABLE: ${REALSENSE_AVAILABLE:-false}
+      REALSENSE_SERIAL: ${REALSENSE_SERIAL:-}
+      REALSENSE_ROS_CONFIG: ${REALSENSE_ROS_CONFIG:-}
+
+    devices:
+      - ${REALSENSE_USB_HOST_DEVICE:-/dev/null}:${REALSENSE_USB_CONTAINER_DEVICE:-/dev/bus/usb/000/000}
+
+    group_add:
+      - plugdev
+
+    stdin_open: false
+    tty: false
+    restart: "no"
+
+    command:
+      - ./scripts/run-realsense.sh
+
   configurator:
     build:
       context: ./tools/configurator

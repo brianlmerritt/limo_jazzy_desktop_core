@@ -55,10 +55,14 @@ Use this checklist to validate the existing Humble fork first, then migrate it t
 
 ## Phase 3 — Additional Hardware
 
-- [ ] Select camera repositories/drivers; add approved repositories as sibling submodules under `src/`.
-- [ ] Add camera calibration, launch, bandwidth, and device-mapping configuration under `config/cameras/`.
-- [ ] Select and add the LiDAR repository/driver as a sibling submodule under `src/`.
-- [ ] Add LiDAR network/serial settings, frame configuration, and calibration under `config/lidar/`.
+- [x] Select the D435i SDK and ROS wrapper and pin compatible source revisions.
+- [ ] Have the repository owner register the RealSense repositories as sibling submodules under `src/`.
+- [x] Add initial camera launch, bandwidth, identity, and device-mapping configuration under `config/cameras/`.
+- [ ] Capture camera intrinsics/extrinsics and validate image, depth, and timestamp behavior.
+- [x] Select the YDLIDAR X2L SDK and Humble ROS wrapper and pin source revisions.
+- [ ] Have the repository owner register the YDLidar repositories as sibling submodules under `src/`.
+- [x] Add X2L serial identity, persistent alias, scan settings, and frame configuration under `config/lidar/`.
+- [ ] Validate `/scan`, orientation, range filtering, timestamps, and the physical `laser_frame` transform.
 - [ ] Add depth cameras and other sensors one at a time, with isolated smoke tests.
 - [ ] Validate combined USB/network bandwidth, power demand, timestamps, TF, and ROS namespaces.
 - [ ] Update container device access and host setup documentation for each addition.

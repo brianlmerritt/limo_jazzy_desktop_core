@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="8086", ATTR{idProduct}=="0b3a", ATTR{serial}=="948123050084", GROUP="plugdev", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNEL=="hidraw*", ATTRS{idVendor}=="8086", ATTRS{idProduct}=="0b3a", ATTRS{serial}=="948123050084", GROUP="plugdev", MODE="0660", TAG+="uaccess"

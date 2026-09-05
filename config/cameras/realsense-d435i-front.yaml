@@ -1,0 +1,17 @@
+serial_no: "948123050084"
+camera_name: front
+camera_namespace: camera
+enable_color: true
+rgb_camera.color_profile: 640x480x15
+enable_depth: true
+depth_module.depth_profile: 640x480x15
+align_depth.enable: true
+enable_sync: true
+enable_infra1: false
+enable_infra2: false
+enable_gyro: false
+enable_accel: false
+pointcloud.enable: false
+publish_tf: true
+tf_publish_rate: 0.0
+diagnostics_period: 1.0

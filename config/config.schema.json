@@ -9,7 +9,8 @@
     "platform",
     "host",
     "devices",
-    "sources"
+    "sources",
+    "drivers"
   ],
   "properties": {
     "schema_version": {
@@ -18,12 +19,20 @@
     "platform": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["host", "container"],
+      "required": [
+        "host",
+        "container"
+      ],
       "properties": {
         "host": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["distribution", "release", "architecture", "l4t_required"],
+          "required": [
+            "distribution",
+            "release",
+            "architecture",
+            "l4t_required"
+          ],
           "properties": {
             "distribution": {
               "const": "ubuntu"
@@ -44,7 +53,12 @@
         "container": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["distribution", "release", "ros_distribution", "compose_service"],
+          "required": [
+            "distribution",
+            "release",
+            "ros_distribution",
+            "compose_service"
+          ],
           "properties": {
             "distribution": {
               "const": "ubuntu"
@@ -111,7 +125,9 @@
         "docker": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["nvidia_runtime_required"],
+          "required": [
+            "nvidia_runtime_required"
+          ],
           "properties": {
             "nvidia_runtime_required": {
               "type": "boolean"
@@ -132,6 +148,15 @@
       "items": {
         "$ref": "#/$defs/source"
       }
+    },
+    "drivers": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/driver"
+      }
     }
   },
   "$defs": {
@@ -151,7 +176,16 @@
       ],
       "properties": {
         "type": {
-          "enum": ["serial", "can", "usb", "network"]
+          "enum": [
+            "serial",
+            "can",
+            "usb",
+            "network"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
         },
         "required": {
           "type": "boolean"
@@ -168,7 +202,37 @@
           "maximum": 4000000
         },
         "startup_mode": {
-          "enum": ["passive", "commanded"]
+          "enum": [
+            "passive",
+            "commanded"
+          ]
+        },
+        "ros_config": {
+          "type": "string",
+          "pattern": "^config/[A-Za-z0-9._/-]+\\.yaml$"
+        },
+        "usb_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "vendor_id",
+            "product_id",
+            "serial"
+          ],
+          "properties": {
+            "vendor_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{4}$"
+            },
+            "product_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{4}$"
+            },
+            "serial": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
         "accepted_paths": {
           "type": "array",
@@ -176,13 +240,21 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["path", "kind"],
+            "required": [
+              "path",
+              "kind"
+            ],
             "properties": {
               "path": {
                 "$ref": "#/$defs/devicePath"
               },
               "kind": {
-                "enum": ["alias", "native", "upstream_default", "fallback"]
+                "enum": [
+                  "alias",
+                  "native",
+                  "upstream_default",
+                  "fallback"
+                ]
               }
             }
           }
@@ -190,14 +262,28 @@
         "ros_parameter": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "value_style"],
+          "required": [
+            "name",
+            "value_style"
+          ],
           "properties": {
             "name": {
               "type": "string",
               "pattern": "^[a-z][a-z0-9_]*$"
             },
             "value_style": {
-              "enum": ["basename", "path"]
+              "enum": [
+                "basename",
+                "path",
+                "literal"
+              ]
+            },
+            "value": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
             }
           }
         },
@@ -209,6 +295,7 @@
             "alias_path",
             "rule_source",
             "rule_target",
+            "setup_command",
             "match",
             "reason"
           ],
@@ -227,10 +314,14 @@
               "type": "string",
               "pattern": "^/etc/udev/rules\\.d/[A-Za-z0-9._-]+\\.rules$"
             },
+            "setup_command": {
+              "type": "string",
+              "minLength": 1
+            },
             "match": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["kernel", "parent_kernel"],
+              "minProperties": 1,
               "properties": {
                 "kernel": {
                   "type": "string",
@@ -239,8 +330,48 @@
                 "parent_kernel": {
                   "type": "string",
                   "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "vendor_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{4}$"
+                },
+                "product_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{4}$"
+                },
+                "serial": {
+                  "type": "string",
+                  "minLength": 1
                 }
               }
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "access_setup": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rule_source",
+            "rule_target",
+            "setup_command",
+            "reason"
+          ],
+          "properties": {
+            "rule_source": {
+              "type": "string",
+              "pattern": "^config/[A-Za-z0-9._/-]+\\.rules$"
+            },
+            "rule_target": {
+              "type": "string",
+              "pattern": "^/etc/udev/rules\\.d/[A-Za-z0-9._-]+\\.rules$"
+            },
+            "setup_command": {
+              "type": "string",
+              "minLength": 1
             },
             "reason": {
               "type": "string",
@@ -251,13 +382,28 @@
         "availability_note": {
           "type": "string",
           "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "driver": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
         }
       }
     },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "path", "url", "branch", "revision", "required"],
+      "required": [
+        "name",
+        "path",
+        "url",
+        "branch",
+        "revision",
+        "required"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -265,7 +411,7 @@
         },
         "path": {
           "type": "string",
-          "pattern": "^src/[A-Za-z0-9._/-]+$"
+          "pattern": "^(src/limo_ros2|drivers/[A-Za-z0-9_-][A-Za-z0-9._-]*|src/ros2_devices/[A-Za-z0-9_-][A-Za-z0-9._-]*)$"
         },
         "url": {
           "type": "string",
@@ -281,6 +427,47 @@
         },
         "required": {
           "type": "boolean"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "absent"
+          ],
+          "default": "present"
+        }
+      }
+    },
+    "driver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_recipe",
+        "sources"
+      ],
+      "properties": {
+        "build_recipe": {
+          "enum": [
+            "ydlidar",
+            "realsense"
+          ]
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sdk",
+            "ros"
+          ],
+          "properties": {
+            "sdk": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "ros": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            }
+          }
         }
       }
     }

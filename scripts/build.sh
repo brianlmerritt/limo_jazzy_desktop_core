@@ -40,4 +40,4 @@ set -u
 
 cd "${ROOT}"
 
-colcon build --symlink-install "$@"
+colcon build --symlink-install --base-paths src "$@"
