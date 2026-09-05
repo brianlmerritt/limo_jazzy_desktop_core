@@ -1,4 +1,4 @@
-# Central Configuration and Host Checks
+# Configuration System and Daily Workflow
 
 `config/config.yaml` declares the expected Jetson host, Humble container,
 hardware device paths, and Git submodules. `config/config.schema.json` rejects
@@ -8,6 +8,109 @@ YDLIDAR X2L, front RealSense D435i, and their pinned source repositories.
 The configuration tooling runs in the `configurator` Compose service. It does
 not create a host Python virtual environment and does not install ROS or Python
 packages on Ubuntu.
+
+## How configuration becomes a running robot
+
+The framework reads configuration on each setup/bringup invocation; it is not a
+live configuration watcher. Edit tracked inputs, then run the appropriate command
+to regenerate deployment values, rebuild, or restart.
+
+| Input | Purpose |
+| --- | --- |
+| `config/config.yaml` | Platform expectations, physical device identities, enabled devices, driver selection, and exact source pins |
+| `config/config.schema.json` | Accepted fields/types; configurator code also checks references, paths, and supported adapters |
+| `config/lidar/*.yaml`, `config/cameras/*.yaml` | ROS parameters such as scan settings, camera streams, frame names, and point-cloud enablement |
+| `Dockerfile` | Container OS and installed build/runtime dependencies |
+| `compose.yaml` and framework scripts | Translate selected configuration into device mappings, environment, builds, and native ROS arguments |
+
+The flow is:
+
+```text
+config + schema -> validate -> enabled devices -> driver recipes -> pinned sources
+                           -> hardware discovery -> .env -> Compose -> ROS arguments
+                           -> SDK/ROS builds -> generated environment + build fingerprint
+```
+
+Component repositories never read framework YAML directly. For example, the
+YDLIDAR adapter passes the selected port and baud as explicit ROS parameters,
+overriding those entries in its ROS parameter file. The RealSense adapter uses `usb_identity.serial` only for host discovery and
+udev. Its SDK serial comes from `ros_parameter.value`, is passed as an explicitly
+typed string, and overrides `serial_no` in the camera parameter file. These two
+serials can differ. The framework launch adapter applies `camera_name` and
+`camera_namespace` to the node as well as passing stream settings as parameters.
+
+`enabled: false` excludes a sensor from build/start selection without deleting its
+sources. `required: false` permits an enabled sensor to be disconnected; it does
+not disable its driver build. Source-level `required` is separate: it selects a
+repository independently of enabled devices. `state: absent` explicitly requests
+source removal, subject to the safeguards described below.
+
+## Everyday commands
+
+Run from the **host repository root** with chassis power and required sensors
+connected:
+
+```bash
+./scripts/bring_up_limo_base.sh
+```
+
+This checks source pins, installs configured sensor access rules, discovers
+devices, rebuilds the image/LIMO/selected sensor drivers, starts sensors, then
+starts and checks the commanded chassis. It does not apply Git changes or publish
+velocity commands. It restarts existing services and recreates dev. On success,
+containers remain detached and the command returns; no shell is opened.
+
+An interactive ROS shell is independent of bringup:
+
+```bash
+./scripts/ros-shell.sh
+```
+
+Inside an existing Docker shell, use `source /workspace/scripts/ros-env.sh`.
+This loads Humble, generated SDK paths, and complete installed ROS package setups
+in dependency order. It does not start nodes. See
+[ROS2_INSTRUCTIONS.md](../../ROS2_INSTRUCTIONS.md) for bringup checks and stop commands.
+
+## What to run after editing configuration
+
+All commands in this table run on the host. Validate changes first with
+`./scripts/setup.sh validate`.
+
+| Change | Apply it with |
+| --- | --- |
+| Source URL or revision | `./scripts/setup.sh plan-sources`, then `./scripts/setup.sh apply-sources`, then full bringup |
+| Device enabled state | Full bringup, or `build-drivers` followed by `start-drivers` through `scripts/setup.sh` |
+| USB identity or serial alias | Full bringup, or `./scripts/configure-sensor-udev.sh install all` followed by `./scripts/setup.sh start-drivers` |
+| Sensor ROS parameters or parameter-file path | `./scripts/setup.sh start-drivers`; no SDK rebuild is needed |
+| Sensor reconnect / changed USB bus address | `./scripts/setup.sh start-drivers` to rediscover and recreate mappings |
+| Container dependencies | Full bringup rebuilds the image and recreates dev before building drivers |
+| Explicit source removal | Disable consumers, set source `state: absent` and `required: false`, then inspect/apply the source plan |
+
+Sensor-only startup recreates dev and interrupts its shells but does not restart
+an already running chassis service. Changes to chassis parameters require full
+bringup. The full bringup script explicitly selects commanded mode; the central
+`startup_mode: passive` is the default for passive development/check workflows.
+
+## Generated files and current limits
+
+Do not hand-edit generated `.env` values to make a permanent configuration change:
+regeneration replaces them. `.env` contains host UID/GID, resolved device paths,
+availability, and selected runtime values. It is not a ROS component config file.
+
+Builds publish `.deps/sensor-env.sh` and `.deps/driver-build.sha256` only after
+successful completion. SDKs/build directories live under `.deps/drivers/` and
+`.deps/build/`; ROS outputs use `build/`, `install/`, and `log/`. Startup checks the
+driver fingerprint and rejects missing/stale builds after selection or pin changes.
+Keep `.deps/udev/`: it records installed rule content/targets for safe updates and
+removal. These generated paths remain untracked.
+
+The current adapters support one X2L and one front D435i, with the LIMO UART
+required by the combined deployment. Configuration chooses implemented recipes;
+a new sensor family still needs adapter/schema support. Platform fields do not
+automatically rewrite the Dockerfile or remaining Humble-specific shell paths.
+Jazzy migration therefore requires code/image changes and fresh build outputs,
+not just changing `ros_distribution` in YAML. Simulation is not implemented as a
+configuration mode yet.
 
 ## Commands
 
@@ -44,9 +147,11 @@ The configuration accepts both existing repository conventions:
 - Native Jetson UART: `/dev/ttyTHS1`, passed as `port_name=ttyTHS1`
 - AgileX/upstream default: `/dev/ttyUSB1`, passed as `port_name=ttyUSB1`
 
-The checker prefers the alias when both paths exist and falls back to the
-upstream device when it does not. This permits standard bringup before a stable
-alias has been installed.
+The read-only checker accepts the legacy upstream path for diagnostics. Actual
+Compose discovery prefers stable configured candidates and excludes entries
+marked `fallback` or `upstream_default`; it does not select a numbered USB port
+as a substitute for hardware identity. The native verified Jetson UART can be
+used before its alias is installed.
 
 The framework exports the package-owned runtime contract through Compose:
 

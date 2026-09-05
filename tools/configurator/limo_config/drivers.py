@@ -111,8 +111,9 @@ def semantic_errors(config: dict) -> list[str]:
                 errors.append(f'devices.{name}.access_setup is required')
             if device['type'] != 'usb':
                 errors.append(f'devices.{name} requires type usb')
-            if device.get('ros_parameter', {}).get('value') != device.get('usb_identity', {}).get('serial'):
-                errors.append(f'devices.{name} ROS serial must match USB identity')
+            serial = device.get('ros_parameter', {}).get('value')
+            if not isinstance(serial, str) or not re.fullmatch(r'[A-Za-z0-9_.:-]+', serial):
+                errors.append(f'devices.{name} ROS serial must be a safe string')
     return errors
 
 
@@ -360,6 +361,10 @@ def device_env(config: dict) -> str:
         if 'usb_identity' in device:
             for field, value in device['usb_identity'].items():
                 values[prefix + '_' + field.upper()] = value
+    camera = config['devices'].get('realsense_front')
+    if camera:
+        values['REALSENSE_USB_SERIAL'] = camera['usb_identity']['serial']
+        values['REALSENSE_SERIAL'] = camera['ros_parameter']['value']
     return '\n'.join(f'{key}={shlex.quote(str(value))}' for key, value in values.items()) + '\n'
 
 

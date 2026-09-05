@@ -1,4 +1,4 @@
-serial_no: "948123050084"
+serial_no: "023422073247"
 camera_name: front
 camera_namespace: camera
 enable_color: true
@@ -11,7 +11,7 @@ enable_infra1: false
 enable_infra2: false
 enable_gyro: false
 enable_accel: false
-pointcloud.enable: false
+pointcloud.enable: true
 publish_tf: true
 tf_publish_rate: 0.0
 diagnostics_period: 1.0

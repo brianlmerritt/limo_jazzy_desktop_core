@@ -65,7 +65,7 @@ if [[ "$REALSENSE_ENABLED" == true ]]; then
     [[ -r "${usb_device}/idVendor" && -r "${usb_device}/idProduct" && -r "${usb_device}/serial" ]] || continue
     [[ "$(<"${usb_device}/idVendor")" == "$REALSENSE_VENDOR_ID" &&
        "$(<"${usb_device}/idProduct")" == "$REALSENSE_PRODUCT_ID" &&
-       "$(<"${usb_device}/serial")" == "$REALSENSE_SERIAL" ]] || continue
+       "$(<"${usb_device}/serial")" == "$REALSENSE_USB_SERIAL" ]] || continue
     [[ "$REALSENSE_AVAILABLE" == false ]] || { echo "Ambiguous RealSense identity" >&2; exit 1; }
     printf -v REALSENSE_USB_HOST_DEVICE '/dev/bus/usb/%03d/%03d' \
       "$((10#$(<"${usb_device}/busnum")))" "$((10#$(<"${usb_device}/devnum")))"

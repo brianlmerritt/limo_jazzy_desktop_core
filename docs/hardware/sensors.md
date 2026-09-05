@@ -227,3 +227,48 @@ and publishes it in the generated sensor environment for subsequent shell builds
 `LD_LIBRARY_PATH` remains the separate runtime library search path. Source pins
 and upstream repositories are unchanged. Re-run `setup.sh build-drivers` (or full
 bringup) after updating the recipe; no manual SDK installation is necessary.
+
+## RealSense ROS build dependency
+
+The development image explicitly installs `ros-humble-diagnostic-updater`, which
+the pinned `realsense2_camera` wrapper requires but `ros-humble-desktop` does not
+provide. Rebuild the image and recreate dev after Dockerfile dependency changes;
+installing packages in an existing container is not a persistent fix.
+
+The pinned librealsense installer attempts `ldconfig` even with a private install
+prefix. Its cache-permission warning is nonfatal; SDK library discovery uses the
+generated environment. Do not install the SDK as root to work around that warning.
+
+With upstream tests enabled, wrapper configuration also attempts the optional
+`rs-enumerate-devices` tool. The SDK recipe disables standalone tools, so this
+test-discovery probe can print `command not found`; the ROS wrapper still builds
+and installs. This is separate from the fatal missing `diagnostic_updater` error.
+
+## Reported hardware verification
+
+On 2026-09-05, the operator confirmed `/scan` and `/point_cloud` publishing after
+Humble bringup. Both topic names are published by the pinned YDLIDAR ROS wrapper:
+`/scan` is `sensor_msgs/msg/LaserScan`, and `/point_cloud` is
+`sensor_msgs/msg/PointCloud`. This observation does not independently confirm
+camera depth/point-cloud output. The tracked RealSense profile still has
+`pointcloud.enable: false`; camera topics use the configured `/camera/front/`
+namespace. Check actual publishers with `ros2 topic info <topic> --verbose` in a
+ROS-ready shell when validating a changed profile.
+
+For a guide to config ownership, generated files, and commands to apply each
+kind of change, see [the configuration workflow](central-configuration.md).
+
+## RealSense USB identity versus SDK identity
+
+The connected D435i exposes USB descriptor serial `948123050084`, while librealsense
+reports SDK serial `023422073247` for the same mapped USB device at port `2-1.1`.
+Keep the former in `usb_identity.serial` and udev rules; use the latter in
+`ros_parameter.value` for camera selection. `REALSENSE_USB_SERIAL` controls host
+discovery; `REALSENSE_SERIAL` selects the SDK device. Leading zeroes are preserved.
+
+`scripts/realsense.launch.py` translates the flat camera YAML to native node
+parameters and applies `camera_namespace`/`camera_name` as node launch settings.
+The explicit SDK selector overrides YAML `serial_no`. This avoids the upstream
+launch file's separate name defaults and parameter-file precedence. With the
+front profile, camera topics appear below `/camera/front/`, including
+`depth/color/points` when point clouds are enabled. There is no `/camera` topic.

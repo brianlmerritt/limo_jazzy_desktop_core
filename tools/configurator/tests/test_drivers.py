@@ -74,12 +74,22 @@ class SelectionTest(unittest.TestCase):
         self.assertIn('123456', text)
         self.assertNotIn('948123050084', text)
 
-    def test_udev_injection_and_serial_disagreement_are_rejected(self):
+    def test_udev_injection_is_rejected(self):
         data = config()
         data['devices']['realsense_front']['usb_identity']['serial'] = 'bad"serial'
         errors = semantic_errors(data)
         self.assertTrue(any('safe serial' in error for error in errors))
-        self.assertTrue(any('must match USB' in error for error in errors))
+        self.assertFalse(any('must match USB' in error for error in errors))
+
+    def test_usb_and_sdk_serials_are_independent(self):
+        data = config()
+        camera = data['devices']['realsense_front']
+        camera['usb_identity']['serial'] = 'usb123'
+        camera['ros_parameter']['value'] = 'sdk456'
+        self.assertFalse(semantic_errors(data))
+        output = device_env(data)
+        self.assertIn('REALSENSE_USB_SERIAL=usb123', output)
+        self.assertIn('REALSENSE_SERIAL=sdk456', output)
 
     def test_build_follows_source_paths_and_pins(self):
         data = config()

@@ -16,6 +16,4 @@ fi
 }
 source "$(dirname "${BASH_SOURCE[0]}")/ros-env.sh"
 
-exec ros2 launch realsense2_camera rs_launch.py \
-  config_file:="$REALSENSE_ROS_CONFIG" \
-  serial_no:="'${REALSENSE_SERIAL}'"
+exec ros2 launch /workspace/scripts/realsense.launch.py

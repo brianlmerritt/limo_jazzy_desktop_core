@@ -24,6 +24,11 @@ RUN apt-get update && \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
+# RealSense ROS wrapper dependency not included in ros-humble-desktop.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ros-humble-diagnostic-updater \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN set -eux; \
     if getent group "${DEV_GID}" >/dev/null; then \
         DEV_GROUP="$(getent group "${DEV_GID}" | cut -d: -f1)"; \

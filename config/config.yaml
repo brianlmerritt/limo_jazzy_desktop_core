@@ -117,7 +117,7 @@ devices:
     ros_parameter:
       name: serial_no
       value_style: literal
-      value: "948123050084"
+      value: "023422073247"
     ros_config: config/cameras/realsense-d435i-front.yaml
     usb_identity:
       vendor_id: "8086"

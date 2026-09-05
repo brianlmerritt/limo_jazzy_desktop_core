@@ -105,6 +105,10 @@ entries to `state: absent` with `required: false`, then run `plan-sources` and
 `apply-sources`. This also deletes their matching `.git/modules/` caches after
 checking for local changes and local-only commits.
 
+RealSense uses separate USB-discovery and SDK-selection serials; see
+`docs/hardware/sensors.md` when replacing a camera. Camera topics are under
+`/camera/front/`, not a single `/camera` topic.
+
 Check for a LiDAR scan and the namespaced camera topics without commanding the
 chassis:
 
