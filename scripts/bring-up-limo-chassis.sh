@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build and start only the chassis; passive diagnostics remain opt-in.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/robot-namespace.sh"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 compose=(docker compose --project-directory "$ROOT" -f "${ROOT}/compose.yaml")
 startup_mode="${1:-commanded}"
@@ -34,20 +35,20 @@ LIMO_BASE_STARTUP_MODE="$startup_mode" "${compose[@]}" --profile robot \
 ready=false
 for _ in $(seq 1 20); do
   if [[ "$("${compose[@]}" exec -T limo-base ./scripts/ros2.sh param get \
-      /limo_base_node startup_mode 2>/dev/null || true)" == "String value is: ${startup_mode}" ]]; then
+      "${ROBOT_PREFIX}/limo_base_node" startup_mode 2>/dev/null || true)" == "String value is: ${startup_mode}" ]]; then
     ready=true
     break
   fi
   sleep 0.5
 done
 [[ "$ready" == true ]] || { echo "Detached ${startup_mode} chassis did not become ready." >&2; exit 1; }
-node_info="$("${compose[@]}" exec -T limo-base ./scripts/ros2.sh node info /limo_base_node)"
-if [[ "$startup_mode" == passive && "$node_info" == *'/cmd_vel'* ]]; then
-  echo "Passive chassis unexpectedly exposes /cmd_vel." >&2
+node_info="$("${compose[@]}" exec -T limo-base ./scripts/ros2.sh node info "${ROBOT_PREFIX}/limo_base_node")"
+if [[ "$startup_mode" == passive && "$node_info" == *"${ROBOT_PREFIX}/cmd_vel"* ]]; then
+  echo "Passive chassis unexpectedly exposes ${ROBOT_PREFIX}/cmd_vel." >&2
   exit 1
 fi
-if [[ "$startup_mode" == commanded && "$node_info" != *'/cmd_vel'* ]]; then
-  echo "Commanded chassis is missing its /cmd_vel subscription." >&2
+if [[ "$startup_mode" == commanded && "$node_info" != *"${ROBOT_PREFIX}/cmd_vel"* ]]; then
+  echo "Commanded chassis is missing its ${ROBOT_PREFIX}/cmd_vel subscription." >&2
   exit 1
 fi
 completed=true

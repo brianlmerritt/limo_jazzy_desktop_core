@@ -16,4 +16,5 @@ fi
 }
 source "$(dirname "${BASH_SOURCE[0]}")/ros-env.sh"
 
+source "$(dirname "${BASH_SOURCE[0]}")/robot-namespace.sh"
 exec ros2 launch /workspace/scripts/realsense.launch.py

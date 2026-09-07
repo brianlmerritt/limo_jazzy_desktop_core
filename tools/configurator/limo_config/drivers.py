@@ -32,7 +32,7 @@ def selected_sources(config: dict) -> list[dict]:
 
 
 def managed_path(path: str) -> bool:
-    return bool(re.fullmatch(r'(drivers|src/ros2_devices)/[A-Za-z0-9_-][A-Za-z0-9._-]*', path))
+    return bool(re.fullmatch(r'(drivers|src/ros2_devices|src/ros2_navigation)/[A-Za-z0-9_-][A-Za-z0-9._-]*', path))
 
 
 def semantic_errors(config: dict) -> list[str]:
@@ -281,13 +281,19 @@ def source_plan(config: dict, workspace: Path) -> str:
     return '\n'.join(lines + ['# Preflight every selected source before any Git mutation.'] + guards + actions + ['echo "Sources applied and gitlinks staged. Review git diff --cached before committing."', ''])
 
 
+def build_platform(config: dict) -> dict:
+    """Runtime namespace does not change SDK ABI or compilation inputs."""
+    return {key: value for key, value in config['platform']['container'].items()
+            if key != 'ros_namespace'}
+
+
 def build_id(config: dict) -> str:
     data = {
         'recipe_version': 3,
         'drivers': active_drivers(config),
         'sources': [s for s in selected_sources(config) if any(
             s['name'] in d['sources'].values() for d in active_drivers(config).values())],
-        'platform': config['platform']['container'],
+        'platform': build_platform(config),
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
@@ -305,7 +311,7 @@ def build_script(config: dict) -> str:
         ros = sources[driver['sources']['ros']]
         recipe = driver['build_recipe']
         # Isolate revisions to avoid reusing libraries left behind by a changed SDK.
-        digest = hashlib.sha256(repr((recipe, sdk, ros, config['platform']['container'])).encode()).hexdigest()[:16]
+        digest = hashlib.sha256(repr((recipe, sdk, ros, build_platform(config))).encode()).hexdigest()[:16]
         prefix = f'/workspace/.deps/drivers/{name}/{digest}'
         build = f'/workspace/.deps/build/{name}/{digest}'
         prefixes.append(prefix)
@@ -344,7 +350,7 @@ def build_script(config: dict) -> str:
 
 def device_env(config: dict) -> str:
     """Validated deployment inputs. Discovery is performed by the host wrapper."""
-    values: dict[str, Any] = {}
+    values: dict[str, Any] = {'LIMO_ROS_NAMESPACE': config['platform']['container'].get('ros_namespace', '')}
     for key, prefix in [('limo_base', 'LIMO'), ('ydlidar_x2l', 'YDLIDAR'), ('realsense_front', 'REALSENSE')]:
         device = config['devices'].get(key)
         values[prefix + '_ENABLED'] = 'true' if device and device.get('enabled', True) else 'false'

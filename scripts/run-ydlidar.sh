@@ -16,6 +16,8 @@ fi
 }
 source "$(dirname "${BASH_SOURCE[0]}")/ros-env.sh"
 
+source "$(dirname "${BASH_SOURCE[0]}")/robot-namespace.sh"
+
 exec ros2 run ydlidar_ros2_driver ydlidar_ros2_driver_node \
-  --ros-args --params-file "$YDLIDAR_ROS_CONFIG" \
+  --ros-args -r "__ns:=${ROBOT_PREFIX:-/}" -r /scan:=scan -r /point_cloud:=point_cloud --params-file "$YDLIDAR_ROS_CONFIG" \
   -p "port:=$YDLIDAR_CONTAINER_PATH" -p "baudrate:=$YDLIDAR_BAUD"

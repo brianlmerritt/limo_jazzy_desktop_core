@@ -22,7 +22,7 @@ Usage: scripts/setup.sh COMMAND
   device-env        Print validated inputs for host device discovery.
 
 apply-sources changes Git state; it never commits, pushes, resets, or cleans.
-Agents may apply within drivers/ and src/ros2_devices/. Explicit state: absent
+Agents may apply within drivers/, src/ros2_devices/, and src/ros2_navigation/. Explicit state: absent
 removes a checkout and its Git cache after preflight. Other Git work stays owner-managed.
 Builds and startup never apply sources.
 EOF

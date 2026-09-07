@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/robot-namespace.sh"
 
 if [[ ! -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash ]]; then
   echo "Run this check inside the Jazzy development container." >&2
@@ -56,13 +57,13 @@ trap cleanup EXIT
 
 (
   trap - INT TERM
-  exec ros2 launch limo_base limo_base.launch.py startup_mode:=passive
+  exec ./scripts/run-limo-base.sh passive
 ) >"$launch_log" 2>&1 &
 launch_pid="$!"
 
 node_ready=false
 for _ in $(seq 1 50); do
-  if ros2 node list 2>/dev/null | grep -Fxq /limo_base_node; then
+  if ros2 node list 2>/dev/null | grep -Fxq "${ROBOT_PREFIX}/limo_base_node"; then
     node_ready=true
     break
   fi
@@ -78,19 +79,19 @@ if [[ "$node_ready" != "true" ]]; then
   exit 1
 fi
 
-ros2 node info /limo_base_node >"$node_info"
-if grep -Fq /cmd_vel "$node_info"; then
-  echo "[FAIL] Passive node unexpectedly exposes /cmd_vel." >&2
+ros2 node info "${ROBOT_PREFIX}/limo_base_node" >"$node_info"
+if grep -Fq "${ROBOT_PREFIX}/cmd_vel" "$node_info"; then
+  echo "[FAIL] Passive node unexpectedly exposes ${ROBOT_PREFIX}/cmd_vel." >&2
   exit 1
 fi
 
-startup_mode="$(ros2 param get /limo_base_node startup_mode)"
+startup_mode="$(ros2 param get "${ROBOT_PREFIX}/limo_base_node" startup_mode)"
 if [[ "$startup_mode" != "String value is: passive" ]]; then
   echo "[FAIL] Passive startup parameter was not applied: ${startup_mode}" >&2
   exit 1
 fi
 
-for topic in /limo_status /imu /wheel/odom; do
+for topic in "${ROBOT_PREFIX}/limo_status" "${ROBOT_PREFIX}/imu" "${ROBOT_PREFIX}/wheel/odom"; do
   sample_file="${check_dir}/${topic//\//_}.txt"
   if ! timeout 8s ros2 topic echo --once "$topic" >"$sample_file"; then
     echo "[FAIL] No message received from ${topic}." >&2
@@ -101,7 +102,8 @@ for topic in /limo_status /imu /wheel/odom; do
   sed -n '1,16p' "$sample_file"
 done
 
-status_sample="${check_dir}/_limo_status.txt"
+status_topic="${ROBOT_PREFIX}/limo_status"
+status_sample="${check_dir}/${status_topic//\//_}.txt"
 if ! grep -Fxq "error_code: 0" "$status_sample"; then
   echo "[FAIL] LIMO reports a nonzero chassis error code." >&2
   exit 1

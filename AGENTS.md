@@ -5,7 +5,7 @@
 This repository owns the reproducible development environment and platform configuration for an AgileX LIMO on a Jetson Orin Nano 8 GB. The host is newly flashed Ubuntu 24.04; keep it as clean as possible.
 
 - `Dockerfile`, `compose.yaml`, and `.devcontainer/` define container workflows.
-- `src/limo_ros2/` is the LIMO ROS 2 fork, maintained as a Git submodule. Keep this existing chassis checkout in place. Non-ROS SDKs and hardware libraries belong under `drivers/<name>/`; ROS 2 sensor/device submodules belong under `src/ros2_devices/<name>/`. Ask the owner before introducing another parent folder, including future AI or non-device ROS work.
+- `src/limo_ros2/` is the LIMO ROS 2 fork, maintained as a Git submodule. Keep this existing chassis checkout in place. Non-ROS SDKs and hardware libraries belong under `drivers/<name>/`; ROS 2 sensor/device submodules belong under `src/ros2_devices/<name>/`. Owner-approved navigation/exploration submodules belong under `src/ros2_navigation/<name>/`. Ask the owner before introducing another parent folder, including future AI or non-device ROS work.
 - `config/{robot,cameras,lidar,networking}/` holds tracked device and runtime configuration.
 - `scripts/` contains repeatable setup, build, and host-configuration scripts.
 - `docs/hardware/` documents wiring, drivers, device names, and manual host steps; `docs/decisions/` records design choices.
@@ -44,9 +44,49 @@ Use Bash with quoted variables, two-space indentation, kebab-case filenames, and
 
 ## Git Ownership and Reviews
 
-Agents may use the validated configuration workflow to add, initialize, update, and remove submodules under the agreed parents `drivers/` and `src/ros2_devices/`, including staging the affected gitlinks and `.gitmodules`. A removal must also remove that submodule's matching repository under `.git/modules/`; never leave that cache behind after `git rm`. Preflight local changes, ignored/untracked files, and local-only commits before removal. Do not infer removal from a disabled device: declare `state: absent` explicitly in the source configuration. Ask the owner before using another parent folder. The existing `src/limo_ros2/` is outside this automatic mutation scope and remains owner-managed. The owner retains control of unrelated staging, commits, pulls, pushes, branch creation/switching, merges, and rebases. Agents may inspect Git status, history, and diffs. Keep proposed changes focused. In handoff notes, list changed files, validation performed, hardware assumptions, and any manual or safety-sensitive steps. Never commit `.env`, credentials, or generated artifacts.
+Agents may use the validated configuration workflow to add, initialize, update, and remove submodules under the agreed parents `drivers/`, `src/ros2_devices/`, and `src/ros2_navigation/`, including staging the affected gitlinks and `.gitmodules`. A removal must also remove that submodule's matching repository under `.git/modules/`; never leave that cache behind after `git rm`. Preflight local changes, ignored/untracked files, and local-only commits before removal. Do not infer removal from a disabled device: declare `state: absent` explicitly in the source configuration. Ask the owner before using another parent folder. The existing `src/limo_ros2/` is outside this automatic mutation scope and remains owner-managed. The owner retains control of unrelated staging, commits, pulls, pushes, branch creation/switching, merges, and rebases. Agents may inspect Git status, history, and diffs. Keep proposed changes focused. In handoff notes, list changed files, validation performed, hardware assumptions, and any manual or safety-sensitive steps. Never commit `.env`, credentials, or generated artifacts.
 
 When completed work requires the user to take a follow-up action, end the final
 response with clear, directly executable instructions describing exactly what
 the user should do next. Do not leave required user actions only in earlier
 commentary, documentation links, or the middle of the handoff.
+
+## Progress and explicit handoffs
+
+At the end of every user-facing response, explicitly state whether the user has
+an action to take or whether an assumption needs clarification. If neither is
+needed, say so briefly and continue the authorised work rather than ending the
+turn with a promise or proposed next step. Do not use a final response merely to
+announce work that can already be performed.
+
+End a working turn only when the requested work is complete or progress actually
+requires user input or an external change. When input is needed, state the exact
+action or question and why it is necessary; continue independent work first.
+When work is complete, explicitly say that no user action is required if that
+is the case. Do not imply unrequested robot movement is authorised.
+
+### Mandatory continuation check before ending a turn
+
+A final response ends execution; it does not schedule the promised work. Never
+write "I will continue", "I will investigate", or an equivalent promise in a
+final response while an authorised next step remains executable.
+
+Before every final response:
+
+1. Check the active user request and any unfinished authorised work.
+2. If the next step can be performed with available tools, perform it in this
+   turn. Use commentary for progress updates, then immediately continue with
+   tools. Do not require the user to say "go ahead" again for that work.
+3. If a command is still running, collect its result and act on it before ending,
+   unless the user explicitly requests stopping or a handoff.
+4. End only with completed results, a specific unavoidable blocker requiring
+   user input, or an explicit user-requested pause. State which applies.
+5. Do not claim work will continue in the background unless a real background
+   task has been started and its status is accurately reported.
+
+When the user asks to fix the collaboration workflow first, complete and verify
+that change before resuming the technical task. Respect an explicit pause.
+Do not substitute repeated apologies, self-criticism, or statements such as
+"I stopped when I should have acted" for execution. Report the concrete change
+and verification instead. These rules change agent behaviour; they do not claim
+to alter VS Code, extension scheduling, or the model's runtime implementation.

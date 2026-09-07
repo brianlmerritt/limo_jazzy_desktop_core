@@ -13,3 +13,6 @@
 [submodule "src/ros2_devices/realsense_ros"]
 	path = src/ros2_devices/realsense_ros
 	url = https://github.com/realsenseai/realsense-ros.git
+[submodule "src/ros2_navigation/m_explore_ros2"]
+	path = src/ros2_navigation/m_explore_ros2
+	url = https://github.com/robo-friends/m-explore-ros2.git

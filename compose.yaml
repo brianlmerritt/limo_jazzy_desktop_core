@@ -19,6 +19,7 @@ services:
       - dialout
 
     environment:
+      LIMO_ROS_NAMESPACE: ${LIMO_ROS_NAMESPACE:-}
       LIMO_SERIAL_PORT: ${LIMO_SERIAL_PORT:-/dev/ttylimo}
       LIMO_SERIAL_BAUD: ${LIMO_SERIAL_BAUD:-460800}
       LIMO_STARTUP_MODE: ${LIMO_STARTUP_MODE:-passive}
@@ -133,3 +134,80 @@ services:
       - /workspace
       - --device-root
       - /host/dev
+
+  robot-transforms:
+    container_name: limo_robot_transforms
+    extends:
+      service: dev
+    profiles: [robot]
+    stdin_open: false
+    tty: false
+    restart: "no"
+    command: [./scripts/ros2.sh, launch, /workspace/scripts/robot-transforms.launch.py]
+
+  mapping:
+    container_name: limo_mapping
+    extends:
+      service: dev
+    profiles: [navigation]
+    stdin_open: false
+    tty: false
+    restart: "no"
+    command: [./scripts/run-navigation.sh, mapping]
+
+  navigation:
+    container_name: limo_navigation
+    extends:
+      service: dev
+    profiles: [navigation]
+    stdin_open: false
+    tty: false
+    restart: "no"
+    command: [./scripts/run-navigation.sh, navigation]
+
+  exploration:
+    container_name: limo_exploration
+    extends:
+      service: dev
+    profiles: [exploration]
+    stdin_open: false
+    tty: false
+    restart: "no"
+    command: [./scripts/run-navigation.sh, exploration]
+
+  desktop:
+    container_name: limo_desktop
+    build:
+      context: .
+      dockerfile: Dockerfile.desktop
+      args:
+        DEV_USER: ${DEV_USER}
+    image: limo-jazzy-desktop-core:desktop
+    profiles: [desktop]
+    network_mode: host
+    ipc: host
+    init: true
+    restart: "no"
+    working_dir: /workspace
+    environment:
+      LIMO_ROS_NAMESPACE: ${LIMO_ROS_NAMESPACE:-}
+      DISPLAY: :1
+      XAUTHORITY: /tmp/limo-desktop/Xauthority
+      XDG_RUNTIME_DIR: /tmp/limo-desktop
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      GALLIUM_DRIVER: llvmpipe
+      LP_NUM_THREADS: "2"
+    volumes:
+      - .:/workspace
+    command: [./scripts/run-desktop.sh]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          xdpyinfo >/dev/null 2>&1 &&
+          python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6080/vnc.html', timeout=2)" &&
+          pgrep -x rviz2 >/dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

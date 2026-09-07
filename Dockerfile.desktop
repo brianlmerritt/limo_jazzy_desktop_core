@@ -1,0 +1,15 @@
+# Build Dockerfile's dev image first; desktop dependencies stay out of robot services.
+FROM limo-jazzy-desktop-core:dev
+ARG DEV_USER=blm
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        tigervnc-standalone-server \
+        novnc \
+        python3-websockify \
+        openbox \
+        xterm \
+        fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+USER ${DEV_USER}
+CMD ["/workspace/scripts/run-desktop.sh"]

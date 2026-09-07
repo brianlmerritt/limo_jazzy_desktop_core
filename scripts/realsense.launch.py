@@ -23,6 +23,10 @@ def generate_launch_description():
         raise ValueError('Invalid camera_name')
     if not isinstance(namespace, str) or not re.fullmatch(r'/?[A-Za-z_][A-Za-z0-9_/]*', namespace):
         raise ValueError('Invalid camera_namespace')
+    robot_namespace = os.environ.get('LIMO_ROS_NAMESPACE', '')
+    if robot_namespace and not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', robot_namespace):
+        raise ValueError('Invalid LIMO_ROS_NAMESPACE')
+    namespace = '/'.join(filter(None, [robot_namespace, namespace.strip('/')]))
     serial = os.environ['REALSENSE_SERIAL']
     if not re.fullmatch(r'[A-Za-z0-9_.:-]+', serial):
         raise ValueError('Invalid SDK serial')
@@ -31,4 +35,7 @@ def generate_launch_description():
     return LaunchDescription([Node(
         package='realsense2_camera', executable='realsense2_camera_node',
         namespace=namespace, name=name, parameters=[parameters], output='screen',
+        remappings=[('/diagnostics', '/' + '/'.join(filter(None, [robot_namespace, 'diagnostics']))),
+                    ('/tf', '/' + '/'.join(filter(None, [robot_namespace, 'tf']))),
+                    ('/tf_static', '/' + '/'.join(filter(None, [robot_namespace, 'tf_static'])))],
     )])

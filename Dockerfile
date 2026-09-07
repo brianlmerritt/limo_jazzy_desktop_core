@@ -27,6 +27,15 @@ RUN apt-get update && \
 # RealSense ROS wrapper dependency not included in ros-${ROS_DISTRO}-desktop.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ros-${ROS_DISTRO}-diagnostic-updater \
+        ros-${ROS_DISTRO}-navigation2 \
+        ros-${ROS_DISTRO}-nav2-bringup \
+        ros-${ROS_DISTRO}-slam-toolbox \
+        ros-${ROS_DISTRO}-rviz2 \
+        xauth \
+        x11-apps \
+        x11-utils \
+        mesa-utils \
+        libgl1-mesa-dri \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \

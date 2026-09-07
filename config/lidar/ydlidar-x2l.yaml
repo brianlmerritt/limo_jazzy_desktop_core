@@ -1,4 +1,4 @@
-ydlidar_ros2_driver_node:
+/**/ydlidar_ros2_driver_node:
   ros__parameters:
     port: /dev/ydlidar
     frame_id: laser_frame
@@ -10,7 +10,8 @@ ydlidar_ros2_driver_node:
     abnormal_check_count: 4
     fixed_resolution: true
     reversion: false
-    inverted: false
+    # Physical box test: preserve forward, reverse the mirrored left/right angles.
+    inverted: true
     auto_reconnect: true
     isSingleChannel: true
     intensity_bit: 0

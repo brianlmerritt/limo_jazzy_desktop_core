@@ -8,7 +8,7 @@ from unittest.mock import patch
 from limo_config.cli import ConfigError, check_sources, load_config
 from limo_config.drivers import (
     active_drivers, build_id, build_script, device_env, selected_sources,
-    semantic_errors, source_plan, udev_env,
+    semantic_errors, source_plan, udev_env, managed_path,
 )
 
 WORKSPACE = Path('/workspace')
@@ -19,15 +19,29 @@ def config():
 
 
 class SelectionTest(unittest.TestCase):
+    def test_namespace_change_preserves_sensor_build_cache(self):
+        data = config()
+        original_id, original_script = build_id(data), build_script(data)
+        data['platform']['container']['ros_namespace'] = 'another_robot'
+        self.assertEqual(build_id(data), original_id)
+        self.assertEqual(build_script(data), original_script)
+
+    def test_approved_navigation_parent_is_managed_but_not_arbitrary_src(self):
+        self.assertTrue(managed_path('src/ros2_navigation/explore'))
+        self.assertFalse(managed_path('src/arbitrary/explore'))
+        self.assertFalse(managed_path('src/ros2_navigation/../escape'))
+        self.assertFalse(managed_path('src/limo_ros2'))
+        self.assertIn('LIMO_ROS_NAMESPACE=limo1_explorer', device_env(config()))
+
     def test_both_drivers_select_their_sources(self):
-        self.assertEqual(len(selected_sources(config())), 5)
+        self.assertEqual(len(selected_sources(config())), 6)
 
     def test_disabled_sensor_omits_its_sources_and_build(self):
         data = config()
         data['devices']['realsense_front']['enabled'] = False
         self.assertEqual(set(active_drivers(data)), {'ydlidar'})
         self.assertEqual({s['name'] for s in selected_sources(data)},
-                         {'limo_ros2', 'ydlidar_sdk', 'ydlidar_ros2_driver'})
+                         {'limo_ros2', 'ydlidar_sdk', 'ydlidar_ros2_driver', 'm_explore_ros2'})
         self.assertNotIn('realsense2_camera', build_script(data))
         self.assertIn('REALSENSE_ENABLED=false', device_env(data))
 
@@ -41,7 +55,7 @@ class SelectionTest(unittest.TestCase):
     def test_optional_hardware_still_selects_build_dependencies(self):
         data = config()
         data['devices']['realsense_front']['required'] = False
-        self.assertEqual(len(selected_sources(data)), 5)
+        self.assertEqual(len(selected_sources(data)), 6)
 
     def test_unknown_driver_and_source_are_rejected(self):
         data = config()
@@ -157,7 +171,7 @@ class SelectionTest(unittest.TestCase):
             if 'driver' in device:
                 device['enabled'] = False
         self.assertNotIn('colcon --log-base', build_script(data))
-        self.assertEqual([s['name'] for s in selected_sources(data)], ['limo_ros2'])
+        self.assertEqual([s['name'] for s in selected_sources(data)], ['limo_ros2', 'm_explore_ros2'])
 
 
 class SourcePlanTest(unittest.TestCase):

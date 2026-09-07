@@ -15,6 +15,7 @@ class BringupTest(unittest.TestCase):
         scripts = self.root / 'scripts'
         scripts.mkdir()
         shutil.copy('/workspace/scripts/bring_up_limo_base.sh', scripts)
+        shutil.copy('/workspace/scripts/robot-namespace.sh', scripts)
         self.log = self.root / 'calls'
         for name in ('setup.sh', 'configure-host-env.sh', 'configure-sensor-udev.sh'):
             helper = scripts / name
@@ -29,8 +30,8 @@ class BringupTest(unittest.TestCase):
 printf 'docker %s\n' "$*" >> "$CALL_LOG"
 case "$*" in
   *'up -d --force-recreate limo-base') echo "chassis-mode=${LIMO_BASE_STARTUP_MODE:-unset}" >> "$CALL_LOG" ;;
-  *'ros2.sh node list') echo /limo_base_node ;;
-  *'ros2.sh topic info /cmd_vel')
+  *'ros2.sh node list') echo "${LIMO_ROS_NAMESPACE:+/$LIMO_ROS_NAMESPACE}/limo_base_node" ;;
+  *'ros2.sh topic info '*'/cmd_vel')
     if [[ "${TEST_DELAYED_TOPIC:-false}" == true && ! -e "$CALL_LOG.ready" ]]; then
       touch "$CALL_LOG.ready"
       echo "Unknown topic '/cmd_vel'" >&2
@@ -38,7 +39,7 @@ case "$*" in
     fi
     echo "Publisher count: ${TEST_PUBLISHERS:-0}"
     echo 'Subscription count: 1' ;;
-  *'ros2.sh topic echo --once /limo_status')
+  *'ros2.sh topic echo --once '*'/limo_status')
     echo 'control_mode: 1'
     echo 'error_code: 0' ;;
 esac
@@ -46,7 +47,7 @@ exit 0
 ''')
         docker.chmod(0o755)
         self.environment = dict(os.environ, PATH=str(binary) + ':' + os.environ['PATH'],
-                                CALL_LOG=str(self.log))
+                                CALL_LOG=str(self.log), LIMO_ROS_NAMESPACE='')
 
     def run_bringup(self, **environment):
         result = subprocess.run(['bash', str(self.root / 'scripts/bring_up_limo_base.sh')],
@@ -63,6 +64,13 @@ exit 0
         self.assertNotIn('apply-sources', calls)
         self.assertNotIn('topic pub', calls)
         self.assertEqual(calls.count(' stop '), 1)
+
+    def test_namespaced_chassis_readiness_uses_scoped_endpoints(self):
+        result, calls = self.run_bringup(LIMO_ROS_NAMESPACE='limo1_explorer')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('topic info /limo1_explorer/cmd_vel', calls)
+        self.assertIn('topic echo --once /limo1_explorer/limo_status', calls)
+        self.assertNotIn('topic info /cmd_vel', calls)
 
     def test_standard_bringup_overrides_passive_environment(self):
         result, calls = self.run_bringup(LIMO_BASE_STARTUP_MODE='passive')
@@ -103,6 +111,7 @@ class ChassisBringupTest(unittest.TestCase):
                 root = Path(directory)
                 (root / 'scripts').mkdir()
                 shutil.copy('/workspace/scripts/bring-up-limo-chassis.sh', root / 'scripts')
+                shutil.copy('/workspace/scripts/robot-namespace.sh', root / 'scripts')
                 binary = root / 'bin'
                 binary.mkdir()
                 docker = binary / 'docker'
@@ -124,7 +133,8 @@ esac
                     ([] if failure == 'commanded' else ['passive']),
                     env=dict(os.environ, PATH=f'{binary}:' + os.environ['PATH'],
                              CALL_LOG=str(calls), FAILURE=failure,
-                             EXPECTED_MODE='commanded' if failure == 'commanded' else 'passive'),
+                             EXPECTED_MODE='commanded' if failure == 'commanded' else 'passive',
+                             LIMO_ROS_NAMESPACE=''),
                     capture_output=True, text=True, timeout=10)
                 log = calls.read_text()
                 self.assertNotIn('ydlidar', log)

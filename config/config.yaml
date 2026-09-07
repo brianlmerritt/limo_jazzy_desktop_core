@@ -12,6 +12,7 @@ platform:
     ros_distribution: jazzy
     compose_service: dev
     build_jobs: 2
+    ros_namespace: limo1_explorer
 
 host:
   required_commands:
@@ -162,3 +163,9 @@ sources:
     branch: ros2-master
     revision: bafc21080c5c8e259dadbb309797949aee0dd950
     required: false
+  - name: m_explore_ros2
+    path: src/ros2_navigation/m_explore_ros2
+    url: https://github.com/robo-friends/m-explore-ros2.git
+    branch: main
+    revision: 326cf8a0b487c34246bb8f3326afbcd69576dc60
+    required: true
