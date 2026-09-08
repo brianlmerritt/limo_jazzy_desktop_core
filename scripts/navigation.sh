@@ -10,22 +10,30 @@ case "${1:-}" in
     "${compose[@]}" --profile robot --profile navigation up -d robot-transforms mapping
     ;;
   start)
+    if [[ $# == 3 && "$2" == --check-lidar-orientation && ( "$3" == true || "$3" == false ) ]]; then
+      export LIMO_CHECK_LIDAR_ORIENTATION="$3"
+    elif [[ $# != 1 ]]; then
+      echo "Usage: $0 start [--check-lidar-orientation true|false]" >&2
+      exit 2
+    fi
+    "${compose[@]}" --profile exploration --profile navigation stop hide-and-seek exploration navigation
     "$0" mapping
-    "${compose[@]}" --profile navigation up -d navigation
+    "${compose[@]}" --profile navigation up -d --force-recreate navigation
     if ! "${compose[@]}" exec -T dev ./scripts/check-navigation.sh; then
-      "${compose[@]}" --profile exploration --profile navigation stop exploration navigation
+      "${compose[@]}" --profile exploration --profile navigation stop hide-and-seek exploration navigation
       echo "Navigation readiness failed; navigation and exploration stopped." >&2
       exit 1
     fi
     ;;
   explore)
+    "${compose[@]}" --profile game stop hide-and-seek
     "$ROOT/scripts/setup.sh" check-sources
     "${compose[@]}" exec -T dev ./scripts/check-navigation.sh
     echo "Starting autonomous exploration now."
     "${compose[@]}" --profile exploration up -d exploration
     ;;
   stop)
-    "${compose[@]}" --profile exploration --profile navigation stop exploration navigation
+    "${compose[@]}" --profile exploration --profile navigation stop hide-and-seek exploration navigation
     # Finish with explicit zeros after all autonomous command producers have stopped.
     "${compose[@]}" exec -T dev timeout 8 ./scripts/ros2.sh topic pub --wait-matching-subscriptions 0 --times 10 --rate 10 \
       "$ROBOT_PREFIX/cmd_vel" geometry_msgs/msg/Twist '{}'

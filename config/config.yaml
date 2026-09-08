@@ -169,3 +169,9 @@ sources:
     branch: main
     revision: 326cf8a0b487c34246bb8f3326afbcd69576dc60
     required: true
+  - name: ros2_hide_and_seek
+    path: src/ros2_hide_and_seek
+    url: https://github.com/brianlmerritt/ros2_hide_and_seek.git
+    branch: main
+    revision: aaba012c6eaa0a51ec3edcaf3cd543d5c872529a
+    required: true

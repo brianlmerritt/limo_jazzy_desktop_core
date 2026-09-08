@@ -31,17 +31,19 @@ class SelectionTest(unittest.TestCase):
         self.assertFalse(managed_path('src/arbitrary/explore'))
         self.assertFalse(managed_path('src/ros2_navigation/../escape'))
         self.assertFalse(managed_path('src/limo_ros2'))
+        self.assertFalse(managed_path('src/ros2_hide_and_seek'))
+        self.assertEqual(semantic_errors(config()), [])
         self.assertIn('LIMO_ROS_NAMESPACE=limo1_explorer', device_env(config()))
 
     def test_both_drivers_select_their_sources(self):
-        self.assertEqual(len(selected_sources(config())), 6)
+        self.assertEqual(len(selected_sources(config())), 7)
 
     def test_disabled_sensor_omits_its_sources_and_build(self):
         data = config()
         data['devices']['realsense_front']['enabled'] = False
         self.assertEqual(set(active_drivers(data)), {'ydlidar'})
         self.assertEqual({s['name'] for s in selected_sources(data)},
-                         {'limo_ros2', 'ydlidar_sdk', 'ydlidar_ros2_driver', 'm_explore_ros2'})
+                         {'limo_ros2', 'ydlidar_sdk', 'ydlidar_ros2_driver', 'm_explore_ros2', 'ros2_hide_and_seek'})
         self.assertNotIn('realsense2_camera', build_script(data))
         self.assertIn('REALSENSE_ENABLED=false', device_env(data))
 
@@ -55,7 +57,7 @@ class SelectionTest(unittest.TestCase):
     def test_optional_hardware_still_selects_build_dependencies(self):
         data = config()
         data['devices']['realsense_front']['required'] = False
-        self.assertEqual(len(selected_sources(data)), 6)
+        self.assertEqual(len(selected_sources(data)), 7)
 
     def test_unknown_driver_and_source_are_rejected(self):
         data = config()
@@ -171,7 +173,7 @@ class SelectionTest(unittest.TestCase):
             if 'driver' in device:
                 device['enabled'] = False
         self.assertNotIn('colcon --log-base', build_script(data))
-        self.assertEqual([s['name'] for s in selected_sources(data)], ['limo_ros2', 'm_explore_ros2'])
+        self.assertEqual([s['name'] for s in selected_sources(data)], ['limo_ros2', 'm_explore_ros2', 'ros2_hide_and_seek'])
 
 
 class SourcePlanTest(unittest.TestCase):

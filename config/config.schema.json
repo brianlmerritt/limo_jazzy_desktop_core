@@ -422,7 +422,7 @@
         },
         "path": {
           "type": "string",
-          "pattern": "^(src/limo_ros2|drivers/[A-Za-z0-9_-][A-Za-z0-9._-]*|src/ros2_navigation/[A-Za-z0-9_-][A-Za-z0-9._-]*|src/ros2_devices/[A-Za-z0-9_-][A-Za-z0-9._-]*)$"
+          "pattern": "^(src/limo_ros2|src/ros2_hide_and_seek|drivers/[A-Za-z0-9_-][A-Za-z0-9._-]*|src/ros2_navigation/[A-Za-z0-9_-][A-Za-z0-9._-]*|src/ros2_devices/[A-Za-z0-9_-][A-Za-z0-9._-]*)$"
         },
         "url": {
           "type": "string",

@@ -5,6 +5,8 @@ import math
 import rclpy
 from rclpy.qos import qos_profile_sensor_data, QoSProfile, DurabilityPolicy
 from sensor_msgs.msg import LaserScan
+from std_msgs.msg import String
+import json
 from nav_msgs.msg import OccupancyGrid, Odometry
 from limo_msgs.msg import LimoStatus
 from tf2_ros import Buffer, TransformListener
@@ -16,6 +18,7 @@ data = {}
 def receive(key, message):
     data[key] = (time.monotonic(), message)
 for topic, kind, qos in [
+    ('navigation_guard/status', String, QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)),
     ('scan', LaserScan, qos_profile_sensor_data),
     ('wheel/odom', Odometry, 10), ('limo_status', LimoStatus, 10),
     ('map', OccupancyGrid, QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))]:
@@ -26,9 +29,16 @@ try:
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         rclpy.spin_once(node, timeout_sec=.1)
-        if len(data) == 4 and buffer.can_transform('map', 'laser_frame', rclpy.time.Time()):
+        if len(data) == 5 and json.loads(data['navigation_guard/status'][1].data).get('ready') and buffer.can_transform('map', 'laser_frame', rclpy.time.Time()):
             break
     now = time.monotonic()
+    status = data.get('navigation_guard/status')
+    if not status or now-status[0] > 2 or not json.loads(status[1].data).get('ready'):
+        raise RuntimeError('Navigation guard not ready: ' + (status[1].data if status else 'missing status'))
+    gate_publishers = node.get_publishers_info_by_topic('/' + os.environ['LIMO_ROS_NAMESPACE'] + '/cmd_vel_guarded')
+    if len(gate_publishers) != 1 or gate_publishers[0].node_name != 'navigation_guard':
+        raise RuntimeError('Guarded velocity must have only the navigation_guard publisher')
+
     for key in ('scan', 'wheel/odom', 'limo_status'):
         if key not in data or now-data[key][0] > 1:
             raise RuntimeError('Missing or stale ' + key)

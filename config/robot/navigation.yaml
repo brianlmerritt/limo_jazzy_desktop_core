@@ -1,4 +1,4 @@
-# Conservative initial limits for the four-wheel differential LIMO.
+# 15 cm body clearance for the four-wheel differential LIMO.
 # Dimensions are provisional; verify the physical envelope before exploration.
 bt_navigator:
   ros__parameters:
@@ -61,7 +61,7 @@ local_costmap:
       height: 3
       resolution: 0.05
       footprint: "[[0.20, 0.15], [0.20, -0.15], [-0.20, -0.15], [-0.20, 0.15]]"
-      footprint_padding: 0.02
+      footprint_padding: 0.15
       transform_tolerance: 0.3
       plugins: [obstacle_layer, inflation_layer]
       obstacle_layer:
@@ -78,7 +78,7 @@ local_costmap:
           expected_update_rate: 0.5
       inflation_layer:
         plugin: nav2_costmap_2d::InflationLayer
-        inflation_radius: 0.40
+        inflation_radius: 0.35
         cost_scaling_factor: 3.0
       always_send_full_costmap: true
 global_costmap:
@@ -91,7 +91,7 @@ global_costmap:
       resolution: 0.05
       track_unknown_space: true
       footprint: "[[0.20, 0.15], [0.20, -0.15], [-0.20, -0.15], [-0.20, 0.15]]"
-      footprint_padding: 0.02
+      footprint_padding: 0.15
       transform_tolerance: 0.3
       plugins: [static_layer, obstacle_layer, inflation_layer]
       static_layer:
@@ -112,7 +112,7 @@ global_costmap:
           expected_update_rate: 0.5
       inflation_layer:
         plugin: nav2_costmap_2d::InflationLayer
-        inflation_radius: 0.40
+        inflation_radius: 0.35
         cost_scaling_factor: 3.0
       always_send_full_costmap: true
 planner_server:
@@ -139,13 +139,7 @@ behavior_server:
     local_footprint_topic: local_costmap/published_footprint
     global_footprint_topic: global_costmap/published_footprint
     cycle_frequency: 10.0
-    behavior_plugins: [spin, backup, drive_on_heading, wait]
-    spin:
-      plugin: nav2_behaviors::Spin
-    backup:
-      plugin: nav2_behaviors::BackUp
-    drive_on_heading:
-      plugin: nav2_behaviors::DriveOnHeading
+    behavior_plugins: [wait]
     wait:
       plugin: nav2_behaviors::Wait
     local_frame: odom
@@ -163,7 +157,7 @@ velocity_smoother:
     feedback: OPEN_LOOP
     scale_velocities: false
     max_velocity: [0.10, 0.0, 0.25]
-    min_velocity: [-0.10, 0.0, -0.25]
+    min_velocity: [0.0, 0.0, -0.25]
     max_accel: [0.15, 0.0, 0.4]
     max_decel: [-0.3, 0.0, -0.6]
     odom_topic: wheel/odom
@@ -175,7 +169,7 @@ collision_monitor:
   ros__parameters:
     base_frame_id: base_link
     odom_frame_id: odom
-    cmd_vel_in_topic: cmd_vel_smoothed
+    cmd_vel_in_topic: cmd_vel_guarded
     cmd_vel_out_topic: cmd_vel
     state_topic: collision_monitor_state
     transform_tolerance: 0.3
@@ -186,7 +180,7 @@ collision_monitor:
     polygons: [StopZone]
     StopZone:
       type: polygon
-      points: "[[0.30, 0.23], [0.30, -0.23], [-0.30, -0.23], [-0.30, 0.23]]"
+      points: "[[0.35, 0.30], [0.35, -0.30], [-0.35, -0.30], [-0.35, 0.30]]"
       action_type: stop
       min_points: 2
       visualize: true

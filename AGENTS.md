@@ -6,6 +6,7 @@ This repository owns the reproducible development environment and platform confi
 
 - `Dockerfile`, `compose.yaml`, and `.devcontainer/` define container workflows.
 - `src/limo_ros2/` is the LIMO ROS 2 fork, maintained as a Git submodule. Keep this existing chassis checkout in place. Non-ROS SDKs and hardware libraries belong under `drivers/<name>/`; ROS 2 sensor/device submodules belong under `src/ros2_devices/<name>/`. Owner-approved navigation/exploration submodules belong under `src/ros2_navigation/<name>/`. Ask the owner before introducing another parent folder, including future AI or non-device ROS work.
+- `src/ros2_hide_and_seek/` is the owner-created ROS 2 vision/game submodule. This exact path is approved and owner-managed, like the chassis checkout; it does not expand automatic mutation/removal to arbitrary `src/` paths.
 - `config/{robot,cameras,lidar,networking}/` holds tracked device and runtime configuration.
 - `scripts/` contains repeatable setup, build, and host-configuration scripts.
 - `docs/hardware/` documents wiring, drivers, device names, and manual host steps; `docs/decisions/` records design choices.

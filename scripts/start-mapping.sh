@@ -2,7 +2,10 @@
 # Start a supervised mapping session; no exploration or navigation goal is sent.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-[[ $# == 0 ]] || { echo "Usage: $0" >&2; exit 2; }
+if [[ $# != 0 && ! ( $# == 2 && "$1" == --check-lidar-orientation && ( "$2" == true || "$2" == false ) ) ]]; then
+  echo "Usage: $0 [--check-lidar-orientation true|false]" >&2
+  exit 2
+fi
 cd "$ROOT"
 completed=false
 cleanup() {
@@ -13,7 +16,7 @@ cleanup() {
 }
 trap cleanup EXIT
 ./scripts/bring_up_limo_base.sh
-./scripts/navigation.sh start
+./scripts/navigation.sh start "$@"
 ./scripts/desktop.sh start
 completed=true
 echo 'Mapping, Nav2 and browser RViz are ready. No movement goal was sent.'

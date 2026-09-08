@@ -1,0 +1,8 @@
+{
+  "aligned": "continue",
+  "orientation_disagreement": "continue",
+  "map_disagreement": "continue",
+  "both_disagree": "continue",
+  "insufficient_geometry": "continue",
+  "unavailable": "continue"
+}

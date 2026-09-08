@@ -40,7 +40,7 @@ def semantic_errors(config: dict) -> list[str]:
     sources = {source['name']: source for source in config.get('sources', [])}
     paths = [source['path'] for source in sources.values()]
     for path in paths:
-        if not managed_path(path) and path != 'src/limo_ros2':
+        if not managed_path(path) and path not in ('src/limo_ros2', 'src/ros2_hide_and_seek'):
             errors.append(f'Unapproved source parent: {path}; discuss a new parent with the owner')
         if '..' in path.split('/') or '.' in path.split('/') or '//' in path or path.endswith('/'):
             errors.append(f'Unsafe source path: {path}')

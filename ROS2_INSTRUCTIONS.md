@@ -1,5 +1,7 @@
 # ROS 2 Jazzy robot bringup
 
+Quick reference: [ROS2_CHEAT_SHEET.md](ROS2_CHEAT_SHEET.md) — grouped commands for portrait viewing/printing.
+
 ## Remote mapping session: Mac to LIMO
 
 Both `blm@limo.local` and `blm@limo_wifi` work from this Mac. The latter can be
@@ -612,3 +614,132 @@ docker compose --profile desktop up -d --no-deps --force-recreate --wait desktop
 Recreating the desktop also clears stale X server locks after abrupt power loss.
 These commands do not start chassis control or Nav2. Map/TF displays will warn
 while the mapping and robot services are stopped; the image still works.
+
+## Default-on orientation checks, forward-only Nav2 and 15 cm body clearance
+
+Navigation now includes a 1 Hz scan/TF consistency check and a forward-only
+velocity gate. Alignment disagreement is advisory by default, without stopping
+or latching; it never guesses a new scanner rotation from missing returns. The fixed scanner mounting yaw stays at pi.
+
+```bash
+./scripts/navigation.sh start
+# Optional startup override; disabling checks does not enable reverse:
+./scripts/navigation.sh start --check-lidar-orientation false
+# The combined startup accepts the same option:
+./scripts/start-mapping.sh --check-lidar-orientation true
+docker compose exec -T dev ./scripts/ros2.sh topic echo /limo1_explorer/navigation_guard/status --once
+```
+
+The 15 cm margin is measured outside the provisional robot body: stop polygon
+0.70 x 0.60 m, costmap padding 0.15 m, inflation radius 0.35 m. Automatic backup
+and recovery spins are removed. A startup failure stops navigation. The configurable matrix in
+`config/robot/alignment-policy.json` maps each alignment state to `continue`,
+`slow` (half speed), or `hold` (zero), all defaulting to `continue`. Decisions
+recover automatically; stale sensors and collision hazards still inhibit motion.
+SLAM remains the pose authority. Automatic global re-localization after carrying
+is planned, not supplied by this check.
+
+See [alignment guard details](docs/software/navigation-alignment-guard.md) for
+thresholds, limitations, precedence, tests and the required physical validation.
+This section supersedes the earlier provisional clearance and velocity-chain
+values. The current chain adds `navigation_guard` between the smoother and
+collision monitor. No scanner accuracy claim substitutes for measured stopping
+clearance, and blind-rear turning remains a separate concern.
+
+## Four robot launch modes: navigation, pose vision, exploration and game
+
+Run these on the Jetson host from this repository:
+
+```bash
+# Full chassis + configured sensors + SLAM + Nav2 + browser RViz; no goal sent:
+./scripts/launch-robot.sh nav
+
+# Camera + YOLO pose only; no chassis/navigation start. Select at each launch:
+./scripts/launch-robot.sh yolo nano
+./scripts/launch-robot.sh yolo small
+
+# Full navigation startup, then autonomous frontier exploration (robot moves):
+./scripts/launch-robot.sh explore
+
+# Full navigation + selected pose model + frontier-search game (robot moves):
+./scripts/launch-robot.sh hide-and-seek nano
+./scripts/launch-robot.sh hide-and-seek small
+
+# Stop game, vision and all robot services:
+./scripts/launch-robot.sh stop
+```
+
+`explore_lite` is already built from the pinned m_explore_ros2 submodule. The
+vision image is separate from dev; both weights are included at build time.
+`nano` selects yolo26n-pose, `small` selects yolo26s-pose. Switching recreates only
+the vision service after checking camera configuration. Default device is CUDA
+GPU 0; CPU mode must be explicit via `LIMO_YOLO_DEVICE=cpu` and is not the normal
+performance target. The first vision image build downloads several GB of CUDA
+and PyTorch dependencies. Later model switches reuse the image and weights.
+
+Add an RViz **Image** display for
+`/limo1_explorer/vision/pose/image`. Pose/depth JSON is on
+`/limo1_explorer/vision/people`; game state/events are on
+`/limo1_explorer/hide_and_seek/status` and `hide_and_seek/events`.
+The original RGB/depth feeds remain available for future floor/drop processing.
+
+```bash
+./scripts/check-vision.sh
+docker compose logs --tail=40 vision
+docker compose logs --tail=40 hide-and-seek
+```
+
+The game is the first frontier-search prototype: it pauses exploration after
+three confident fresh person detections and publishes “I found someone!” as an
+event. It does not yet search viewpoints on a fully mapped floor, identify
+individual children, speak audio, or protect against stairs. Use the full game
+planner backlog in HIDE_AND_SEEK.md for those extensions. Explore and game modes
+are mutually exclusive in these launch commands. Use these commands to switch
+modes; do not start competing exploration instances or RViz goals during a game.
+
+Package source now lives in the owner-created `src/ros2_hide_and_seek` Git
+submodule (https://github.com/brianlmerritt/ros2_hide_and_seek.git), containing
+`limo_vision` and `limo_hide_and_seek`. Docker copies/builds that checkout.
+The prepared package additions remain uncommitted; the configured revision is
+the owner's current initial commit. When publishing a new component revision,
+update the framework source pin and gitlink together.
+
+Validated on the current Orin: both models load on CUDA and publish fresh ROS
+results; nano/small/nano switching and a 640x480 annotated image passed. The
+initial five-sample warm benchmark was approximately 43–45 ms per prediction,
+with no claim of sustained-load performance or person-detection accuracy.
+The game/exploration launch tests used synthetic data and fake Nav2, not floor
+motion. Model weights are checked against `config/cameras/yolo-models.sha256`
+during image builds. Nano was left running after setup.
+
+## Next physical session — agreed preparation checklist
+
+This is a plan, not an instruction to start services or move the robot now.
+
+1. **Switch to battery.** Stop the robot services with
+   `./scripts/launch-robot.sh stop`, then shut down Ubuntu normally before
+   disconnecting the lab PSU. Connect the charged battery and power up.
+2. **Corridor: RViz and short Nav2 movement.** Place LIMO facing down the corridor
+   and run `./scripts/launch-robot.sh nav`. Confirm the Front Camera Image display
+   shows a live, updating feed on `camera/front/color/image_raw`; confirm map,
+   scan and physical forward direction agree. Try a short forward goal before
+   starting any autonomous exploration. This stage does not need YOLO.
+3. **Top of stairs: stationary sensor observation only.** Before carrying LIMO,
+   stop the command-producing services and the chassis driver:
+   `docker compose stop hide-and-seek exploration navigation mapping limo-base`.
+   Leave camera/LiDAR and RViz available for observation. Secure the robot against
+   rolling or falling and manually position it at several angles, with wheels
+   entirely supported. Observe RGB, depth and point-cloud coverage of the landing
+   edge, first step and missing/invalid depth. Use camera/sensor coordinates for
+   this observation, not the old corridor map pose. Do not send goals, velocity
+   commands or run exploration during this test. Missing depth is not evidence
+   of clear floor, and no cliff detector or automatic stair stop exists yet.
+4. **Return downstairs and try exploration.** Re-establish the downstairs map
+   pose after carrying; if mapping alignment was lost, start a fresh mapping
+   session before movement. Recheck a short Nav2 goal. With navigation running
+   and satisfactory, use `./scripts/navigation.sh explore` to begin autonomous
+   frontier mapping. Keep stair access excluded from this session. Stop using
+   `./scripts/launch-robot.sh stop` when finished.
+
+A successful stationary stair observation is sensor evidence for future drop
+protection, not approval for autonomous navigation near the stair opening.

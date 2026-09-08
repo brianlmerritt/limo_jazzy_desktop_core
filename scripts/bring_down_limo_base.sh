@@ -31,6 +31,8 @@ echo "Bringing down all Compose profiles..."
   --profile navigation \
   --profile exploration \
   --profile desktop \
+  --profile vision \
+  --profile game \
   down
 
 echo "All LIMO Compose services are stopped."
