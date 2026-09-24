@@ -24,8 +24,8 @@ services:
       LIMO_STARTUP_MODE: ${LIMO_STARTUP_MODE:-passive}
 
     devices:
-      - ${LIMO_SERIAL_HOST_DEVICE:-/dev/ttyTHS1}:/dev/ttyTHS1
-      - ${LIMO_SERIAL_HOST_DEVICE:-/dev/ttyTHS1}:${LIMO_SERIAL_PORT:-/dev/ttylimo}
+      - ${LIMO_SERIAL_HOST_DEVICE:-/dev/null}:/dev/ttyTHS1
+      - ${LIMO_SERIAL_HOST_DEVICE:-/dev/null}:${LIMO_SERIAL_PORT:-/dev/ttylimo}
 
     working_dir: /workspace
 

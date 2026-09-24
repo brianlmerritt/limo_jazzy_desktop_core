@@ -1,6 +1,6 @@
 # ROS 2 Humble robot bringup
 
-## Bring up the latest checked-out version
+## Bring up with LIMO
 
 Power the LIMO chassis and keep the robot safely supported before starting
 commanded mode. From the repository root, run:
@@ -26,6 +26,18 @@ shells. A failure after services have been stopped also stops newly started
 chassis/sensor services. Source verification failures leave running services alone.
 It does not apply Git source changes; use `setup.sh apply-sources` separately when
 adding sources or changing pins.
+
+## Bring up without LIMO
+
+To start the Docker ROS 2 development environment without a connected LIMO
+chassis or robot service, run:
+
+```bash
+./scripts/bring_up_ros.sh
+```
+
+This starts only `dev`; it does not instantiate `limo-base` or access chassis
+hardware. Then open the ROS-ready shell as usual:
 
 ## Enter the ROS 2 environment
 

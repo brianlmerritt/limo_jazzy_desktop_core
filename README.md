@@ -7,6 +7,23 @@ ROS 2 Humble in Ubuntu 22.04; Jazzy migration follows on a later branch.
 See `ROS2_INSTRUCTIONS.md` for the current container, build, passive check, and
 explicit commanded bringup commands.
 
+## Bringup modes
+
+With the LIMO chassis and configured sensors connected:
+
+```bash
+./scripts/bring_up_limo_base.sh
+```
+
+Without LIMO hardware, for Docker ROS 2 development only:
+
+```bash
+./scripts/bring_up_ros.sh
+```
+
+The second command starts only the `dev` container and never starts the
+`limo-base` robot service.
+
 ## Goals
 
 - Ubuntu 24.04 / JetPack host
@@ -91,6 +108,18 @@ driver and its dependencies inside the container:
 docker compose up -d dev
 docker compose exec dev ./scripts/build.sh --packages-up-to limo_base
 ```
+
+For development on a machine without the LIMO chassis, start only the ROS 2
+development container:
+
+```bash
+./scripts/bring_up_ros.sh
+./scripts/ros-shell.sh
+```
+
+This maps `/dev/null` for the chassis serial device and does not start the
+`limo-base` service. The normal `configure-host-env.sh` workflow still selects
+and validates the real chassis device when running on the robot.
 
 The environment is present in Dev Container shells and normal Compose commands.
 An explicit ROS `port_name` or `baud_rate` parameter still takes precedence.

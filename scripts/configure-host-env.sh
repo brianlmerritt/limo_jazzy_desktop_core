@@ -2,12 +2,25 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WITHOUT_LIMO=false
+if [[ "${1:-}" == "--without-limo" ]]; then
+  WITHOUT_LIMO=true
+elif [[ $# -gt 0 ]]; then
+  echo "Usage: $0 [--without-limo]" >&2
+  exit 2
+fi
 config_inputs="$(mktemp)"
 env_output="$(mktemp "${ROOT}/.env.XXXXXX")"
 trap 'rm -f "$config_inputs" "$env_output"' EXIT
 "${ROOT}/scripts/setup.sh" device-env > "$config_inputs"
 # Generated shell assignments use shlex.quote after schema validation.
 source "$config_inputs"
+
+if [[ "$WITHOUT_LIMO" == true ]]; then
+  LIMO_ENABLED=false
+  YDLIDAR_ENABLED=false
+  REALSENSE_ENABLED=false
+fi
 
 LIMO_SERIAL_HOST_DEVICE=/dev/null
 LIMO_SERIAL_PORT="${LIMO_CONTAINER_PATH:-/dev/ttylimo}"
