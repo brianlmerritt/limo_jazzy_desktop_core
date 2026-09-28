@@ -256,3 +256,38 @@ and both turning directions. Odometry feedback and explicit stops passed;
 see [the recorded results](docs/software/wheel-odometry-validation.md).
 Pose heading uses the IMU and therefore stays nearly fixed during lifted-wheel
 turning. The test does not validate the controller's command timeout.
+
+## Desktop Isaac Sim 6.1 simulation (external_robot_jazzy)
+
+On the Ubuntu RTX desktop, use the separate simulation Compose file. It starts no
+physical LIMO, lidar or RealSense drivers and mounts no robot devices. Isaac Sim
+uses the existing host installation and bundled runtime; ROS 2 Jazzy tools run in
+Docker. Existing submodule checkouts are not changed by this workflow.
+
+```bash
+./scripts/install-desktop-helpers.sh
+docker compose -f compose.sim.yaml build
+limo-sim start
+limo-sim wait
+limo-sim check
+# Separate terminals, optionally:
+limo-sim rviz
+limo-sim teleop
+# When finished:
+limo-sim stop
+```
+
+Use `limo-sim start --headless` without the Isaac window. `limo-sim check --motion`
+additionally performs a short simulated drive/turn/watchdog test in the clear
+starting area. Commands are namespaced under `/limo`, with `/clock` and TF;
+consumers should use simulation time. `limo-sim shell` opens the container and
+`ros-sim start|stop|status|shell` manages only the ROS environment.
+
+The helpers coordinate GPU use with the existing Qwen service: simulation startup
+stops Qwen if active, and simulation shutdown restores it. `llama
+start|stop|status|logs` manages Qwen directly. Run `limo-sim stop` even after closing
+the Isaac window to finish cleanup and restore Qwen.
+
+See [desktop simulation configuration, topics, limitations and rollback](docs/decisions/0002-desktop-isaac-jazzy-simulation.md).
+The MicroDuck Windows archive and RL setup are parked; the candidate for the next
+RL trial is recorded in that decision document.

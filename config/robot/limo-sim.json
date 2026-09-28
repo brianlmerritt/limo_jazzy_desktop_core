@@ -1,0 +1,27 @@
+{
+  "asset": "Isaac/Robots/AgilexRobotics/limo/limo.usd",
+  "namespace": "limo",
+  "physics_hz": 60,
+  "camera_hz": 10,
+  "camera_width": 640,
+  "camera_height": 480,
+  "command_timeout_s": 0.5,
+  "max_linear_mps": 0.5,
+  "max_angular_rps": 1.0,
+  "wheel_radius_m": 0.045,
+  "wheel_track_m": 0.13,
+  "lidar_hz": 10.0,
+  "lidar_position": [
+    0.103,
+    0.0,
+    0.1
+  ],
+  "camera_position": [
+    0.12,
+    0.0,
+    0.15
+  ],
+  "yaw_kp": 3.0,
+  "yaw_ki": 4.0,
+  "lidar_rear_occlusion_degrees": 120.0
+}
