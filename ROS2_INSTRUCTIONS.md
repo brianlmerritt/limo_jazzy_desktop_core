@@ -2,6 +2,22 @@
 
 Quick reference: [ROS2_CHEAT_SHEET.md](ROS2_CHEAT_SHEET.md) — grouped commands for portrait viewing/printing.
 
+## Robot startup without navigation
+
+On the **Jetson host**, from this repository, run:
+
+```bash
+./scripts/bring_up_limo_base.sh
+```
+
+This starts the chassis, configured sensors and robot transforms. It stops
+previous mapping/navigation/exploration and leaves them stopped. The chassis
+accepts velocity commands, but startup sends none. It does not start browser
+RViz or attach a terminal to the robot. For a separate ROS-ready shell, run
+`./scripts/ros-shell.sh`.
+
+For the full SLAM/Nav2/RViz session instead, use `./scripts/launch-robot.sh nav`.
+
 ## Remote mapping session: Mac to LIMO
 
 Both `blm@limo.local` and `blm@limo_wifi` work from this Mac. The latter can be
@@ -70,8 +86,7 @@ commanded mode. Autonomous exploration requires a separate explicit command. Fro
 ./scripts/bring_up_limo_base.sh
 ```
 
-The script brings up the chassis **and enabled sensors**. It checks
-configured source pins, installs/updates sensor udev rules (sudo), discovers
+The script brings up the chassis **and enabled sensors**. It validates runtime configuration, installs/updates sensor udev rules (sudo), discovers
 devices, stops existing chassis/sensor services, rebuilds the image and LIMO
 packages, builds selected sensor drivers, and starts the sensors before commanded
 chassis bringup. It checks chassis discovery, `/limo1_explorer/cmd_vel`, control mode, and errors
@@ -83,7 +98,7 @@ prompt. Opening or closing `ros-shell.sh` is independent of robot operation.
 
 This restarts the robot services and interrupts existing development-container
 shells. A failure after services have been stopped also stops newly started
-chassis/sensor services. Source verification failures leave running services alone.
+chassis/sensor services. Configuration validation failures leave running services alone.
 It does not apply Git source changes; use `setup.sh apply-sources` separately when
 adding sources or changing pins.
 
@@ -295,7 +310,7 @@ namespaces so ROS 2 discovery works between them.
 
 ROS outputs are isolated in `build/jazzy`, `install/jazzy`, and `log/jazzy`.
 Sensor SDK environments use `.deps/sensor-env-jazzy.sh`; SDK cache hashes include
-source revisions and the container platform. Humble outputs remain untouched.
+source paths and the container platform, not Git commits or branch names. Humble outputs remain untouched.
 `platform.container.build_jobs` controls sensor compiler parallelism (2 on this
 8 GB Jetson). Use framework build helpers to preserve these paths.
 
@@ -343,14 +358,21 @@ Run from the host repository:
 ./scripts/navigation.sh explore
 # Stop exploration and navigation, send zero, leave mapping running.
 ./scripts/navigation.sh stop
+# Reset the unsaved live map; leave navigation/exploration/game stopped.
+./scripts/navigation.sh reset
 # Save occupancy map into ignored .deps/maps/room.{yaml,pgm}.
 ./scripts/navigation.sh save-map room
 ```
 
+`reset` requires the base, sensors and dev container to be running. It stops
+autonomous navigation, sends zero velocity, and restarts SLAM with a fresh map.
+Saved map files, chassis odometry, camera and RViz are unchanged. Use
+`./scripts/navigation.sh start` when ready to enable Nav2 again; no goal is sent.
+
 Before autonomous motion, verify nominal LiDAR extrinsics in
-`config/robot/geometry.json` against the actual mounting. The configured 0.40 m
-by 0.30 m footprint plus 0.02 m padding is provisional: verify it encloses all
-attachments. Scan geometry comes from the existing LIMO description, with
+`config/robot/geometry.json` against the actual mounting. The owner-measured body is 0.28 m by 0.20 m.
+`config/robot/navigation-footprint.json` supplies the body dimensions and 0.10 m
+clearance to both costmaps and the collision stop zone (0.48 m by 0.40 m). Scan geometry comes from the existing LIMO description, with
 `laser_frame` matching the actual scanner header. Camera streams are namespaced,
 but no guessed base-to-camera transform or depth obstacle layer is enabled.
 Navigation initially uses LiDAR only; cover glass at scan height and verify
@@ -615,7 +637,7 @@ Recreating the desktop also clears stale X server locks after abrupt power loss.
 These commands do not start chassis control or Nav2. Map/TF displays will warn
 while the mapping and robot services are stopped; the image still works.
 
-## Default-on orientation checks, forward-only Nav2 and 15 cm body clearance
+## Default-on orientation checks, forward-only Nav2 and configurable clearance
 
 Navigation now includes a 1 Hz scan/TF consistency check and a forward-only
 velocity gate. Alignment disagreement is advisory by default, without stopping
@@ -630,8 +652,10 @@ or latching; it never guesses a new scanner rotation from missing returns. The f
 docker compose exec -T dev ./scripts/ros2.sh topic echo /limo1_explorer/navigation_guard/status --once
 ```
 
-The 15 cm margin is measured outside the provisional robot body: stop polygon
-0.70 x 0.60 m, costmap padding 0.15 m, inflation radius 0.35 m. Automatic backup
+The current 10 cm margin is measured outside the owner-measured 28 x 20 cm body:
+stop polygon 48 x 40 cm and costmap padding 0.10 m, generated from
+`config/robot/navigation-footprint.json`. Inflation radius remains 0.35 m as a
+soft cost preference, not a hard minimum gap. Automatic backup
 and recovery spins are removed. A startup failure stops navigation. The configurable matrix in
 `config/robot/alignment-policy.json` maps each alignment state to `continue`,
 `slow` (half speed), or `hold` (zero), all defaulting to `continue`. Decisions
@@ -646,11 +670,14 @@ values. The current chain adds `navigation_guard` between the smoother and
 collision monitor. No scanner accuracy claim substitutes for measured stopping
 clearance, and blind-rear turning remains a separate concern.
 
-## Four robot launch modes: navigation, pose vision, exploration and game
+## Robot startup and launch modes
 
 Run these on the Jetson host from this repository:
 
 ```bash
+# Chassis + configured sensors + robot transforms, without SLAM or Nav2:
+./scripts/bring_up_limo_base.sh
+
 # Full chassis + configured sensors + SLAM + Nav2 + browser RViz; no goal sent:
 ./scripts/launch-robot.sh nav
 
@@ -700,9 +727,14 @@ modes; do not start competing exploration instances or RViz goals during a game.
 Package source now lives in the owner-created `src/ros2_hide_and_seek` Git
 submodule (https://github.com/brianlmerritt/ros2_hide_and_seek.git), containing
 `limo_vision` and `limo_hide_and_seek`. Docker copies/builds that checkout.
-The prepared package additions remain uncommitted; the configured revision is
-the owner's current initial commit. When publishing a new component revision,
-update the framework source pin and gitlink together.
+After committing a component change, update its reviewed revision in
+`config/config.yaml` and the framework gitlink together. Keep the configured
+branch current too. Use `./scripts/setup.sh check-sources` explicitly when auditing a reproducible
+checkout; it compares configured revisions, checkout HEAD and recorded gitlinks.
+This maintenance check is not called by startup, exploration or shutdown.
+Runtime builds use the source directories as they currently exist, including
+local edits. Missing source directories, build failures, device/data/TF failures
+still block startup. Git commits, branches and staging do not.
 
 Validated on the current Orin: both models load on CUDA and publish fresh ROS
 results; nano/small/nano switching and a 640x480 annotated image passed. The
@@ -743,3 +775,61 @@ This is a plan, not an instruction to start services or move the robot now.
 
 A successful stationary stair observation is sensor evidence for future drop
 protection, not approval for autonomous navigation near the stair opening.
+
+## Runtime versus Git maintenance
+
+Bringup, driver builds, exploration and shutdown do not validate Git revisions,
+branches or gitlinks. Keep `check-sources`, `plan-sources` and `apply-sources` for
+explicit source maintenance. No runtime command checks out or resets a source.
+The existing build/start workflow is retained; it builds current local code.
+Driver build markers check build configuration and source locations only. This
+cache-key change causes a one-time SDK rebuild on the next normal bringup.
+After incompatible SDK/toolchain changes, use a deliberate clean build rather
+than relying on a commit hash to determine binary compatibility.
+
+## Invalid LiDAR returns and mapping (2026-09-08)
+
+Normal bringup now starts the YDLIDAR driver and `limo_scan_adapter` together.
+The driver publishes `/limo1_explorer/scan_raw`; the adapter publishes the usual
+`/limo1_explorer/scan`. Zero, nonfinite and out-of-range readings become NaN,
+while valid readings, timestamps, angles and TF remain unchanged. The existing
+`/limo1_explorer/point_cloud` output is unchanged. Substitute your configured
+robot namespace if different.
+
+This fixes a reproduced SLAM failure in which zero-valued missing returns
+compressed a roughly four-metre drive into a much shorter map trajectory.
+Missing measurements are unknown, not obstacles or confirmed free space. The
+raw topic is retained to investigate blind sectors and acquisition problems.
+The sensor build recipe includes the adapter automatically; keep using
+`./scripts/bring_up_limo_base.sh` for normal startup.
+
+A previously distorted map is not repaired just by fixing new scans. The
+repeatable `./scripts/navigation.sh reset` command starts a fresh map and leaves
+navigation stopped; preserve any map needed for diagnosis first. See
+[the measured diagnosis](docs/software/map-diagnosis-2026-09-08.md) for the saved
+scan replay, collision-stop evidence, and the meaning of 15 cm body clearance.
+
+The standard LIMO chassis blocks the rear LiDAR sector (owner-confirmed). This
+gap is expected; see [rear blind-sector handling](docs/hardware/sensors.md#limo-rear-lidar-blind-sector).
+The corrected scan leaves that sector unknown and does not alter mounting TF.
+When physically carrying the robot back to a starting position, stop mapping
+before moving it and start a fresh session afterwards; do not build a map while
+carrying it. The 8 September old map and diagnostic captures were cleared at the
+owner's request.
+
+Navigation startup waits for command-topic discovery as well as sensor data and
+TF within its existing readiness timeout. Receiving a scan alone does not mean
+DDS has discovered every command publisher. Routing failures now report the
+actual discovered node names. The required routing and startup commands are
+unchanged. A ready test session includes Nav2; mapping-only mode cannot accept
+RViz navigation goals.
+
+To change body clearance, edit `clearance_m` in
+`config/robot/navigation-footprint.json`, then run `./scripts/navigation.sh start`.
+That command replaces the Nav2 session without resetting the map; previous goals
+are not replayed. A successful readiness check leaves the full navigation setup
+running. The ordinary chassis bringup command remains unchanged.
+
+YOLO overlay: person boxes, labels and poses are **red below 80% confidence**
+and **blue at or above 80%**. Colour is a confidence cue; blue detections can
+still be false positives. This does not change detection or game thresholds.

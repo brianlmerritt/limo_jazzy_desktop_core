@@ -289,9 +289,9 @@ def build_platform(config: dict) -> dict:
 
 def build_id(config: dict) -> str:
     data = {
-        'recipe_version': 3,
+        'recipe_version': 5,
         'drivers': active_drivers(config),
-        'sources': [s for s in selected_sources(config) if any(
+        'sources': [{'name': s['name'], 'path': s['path']} for s in selected_sources(config) if any(
             s['name'] in d['sources'].values() for d in active_drivers(config).values())],
         'platform': build_platform(config),
     }
@@ -310,18 +310,19 @@ def build_script(config: dict) -> str:
         sdk = sources[driver['sources']['sdk']]
         ros = sources[driver['sources']['ros']]
         recipe = driver['build_recipe']
-        # Isolate revisions to avoid reusing libraries left behind by a changed SDK.
-        digest = hashlib.sha256(repr((recipe, sdk, ros, build_platform(config))).encode()).hexdigest()[:16]
+        # Isolate source locations and toolchains; Git metadata is not a build input.
+        # CMake rebuilds changed source files in the current checkout.
+        digest = hashlib.sha256(repr((recipe, sdk['path'], ros['path'], build_platform(config))).encode()).hexdigest()[:16]
         prefix = f'/workspace/.deps/drivers/{name}/{digest}'
         build = f'/workspace/.deps/build/{name}/{digest}'
         prefixes.append(prefix)
         for source in (sdk, ros):
             path = source['path']
-            lines.append(f'[[ -e {shlex.quote(path + "/.git")} && "$(git -C {shlex.quote(path)} rev-parse HEAD)" == {shlex.quote(source["revision"])} ]] || {{ echo "Source missing or pin mismatch: {path}" >&2; exit 1; }}')
+            lines.append(f'[[ -d {shlex.quote(path)} ]] || {{ echo "Source directory missing: {path}" >&2; exit 1; }}')
         options = ['-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={prefix}', '-DBUILD_EXAMPLES=OFF']
         if recipe == 'ydlidar':
             options += ['-DBUILD_TEST=OFF']
-            packages = ['ydlidar_ros2_driver']
+            packages = ['ydlidar_ros2_driver', 'limo_scan_adapter']
         else:
             options += ['-DBUILD_GRAPHICAL_EXAMPLES=OFF', '-DBUILD_TOOLS=OFF', '-DBUILD_WITH_CUDA=OFF', '-DFORCE_RSUSB_BACKEND=ON']
             packages = ['realsense2_camera_msgs', 'realsense2_description', 'realsense2_camera']
@@ -334,7 +335,7 @@ def build_script(config: dict) -> str:
                   f'export LIBRARY_PATH={shlex.quote(prefix + "/lib")}"${{LIBRARY_PATH:+:${{LIBRARY_PATH}}}}"',
                   f'export LD_LIBRARY_PATH={shlex.quote(prefix + "/lib")}"${{LD_LIBRARY_PATH:+:${{LD_LIBRARY_PATH}}}}"',
                   f'export PKG_CONFIG_PATH={shlex.quote(prefix + "/lib/pkgconfig")}"${{PKG_CONFIG_PATH:+:${{PKG_CONFIG_PATH}}}}"',
-                  command('colcon', '--log-base', f'log/{distro}', 'build', '--build-base', f'build/{distro}', '--install-base', f'install/{distro}', '--symlink-install', '--cmake-clean-cache', '--base-paths', ros['path'], '--packages-select', *packages)]
+                  command('colcon', '--log-base', f'log/{distro}', 'build', '--build-base', f'build/{distro}', '--install-base', f'install/{distro}', '--symlink-install', '--cmake-clean-cache', '--base-paths', ros['path'], *(['src/ros2_devices/limo_scan_adapter'] if recipe == 'ydlidar' else []), '--packages-select', *packages)]
     env = '\n'.join([
         'export CMAKE_PREFIX_PATH=' + shlex.quote(':'.join(prefixes)) + '"${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"',
         'export LIBRARY_PATH=' + shlex.quote(':'.join(p + '/lib' for p in prefixes)) + '"${LIBRARY_PATH:+:${LIBRARY_PATH}}"',

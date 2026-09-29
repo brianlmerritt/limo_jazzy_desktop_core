@@ -24,10 +24,27 @@ http://127.0.0.1:6080/vnc.html?autoconnect=1&resize=remote
 cd /home/blm/dev/docker/limo_jazzy_desktop_core
 ```
 
-## 2. Full robot startup — no goal sent
+## 2. Robot startup — choose with or without navigation
+
+**Robot without navigation** — chassis, configured sensors and robot transforms:
+
+```bash
+./scripts/bring_up_limo_base.sh
+```
+
+Stops previous mapping/navigation/exploration and leaves them stopped. The
+chassis accepts velocity commands, but startup sends none. It does not start
+browser RViz. Open a separate ROS-ready terminal when needed:
+
+```bash
+./scripts/ros-shell.sh
+```
+
+**Robot with navigation** — no goal sent:
 
 Starts chassis, configured sensors, SLAM, Nav2 and browser RViz.
-Startup rebuilds/restarts services and may take several minutes.
+Startup builds current local code and restarts services; allow several minutes.
+It does not require Git commits or recorded pins to match.
 
 ```bash
 ./scripts/launch-robot.sh nav
@@ -65,6 +82,22 @@ Save the current occupancy map (`downstairs` is an example name):
 
 Files go into `.deps/maps/`. This command does not save the SLAM pose graph.
 Do not send separate RViz goals during exploration or a game.
+
+**Reset the live map (robot stationary, base and sensors running):**
+
+```bash
+./scripts/navigation.sh reset
+```
+
+This discards the unsaved live map and starts a fresh SLAM session. Saved
+files in `.deps/maps/` remain. Camera and RViz stay running; navigation,
+exploration and the game stay stopped. It does not reset chassis odometry.
+
+When ready to use Nav2 again (no goal is sent):
+
+```bash
+./scripts/navigation.sh start
+```
 
 ## 4. YOLO pose — select model at launch
 
@@ -191,3 +224,7 @@ ros2 topic hz "$R/camera/front/color/image_raw"
 `Ctrl+C` ends a continuous topic check; `exit` returns to the host shell.
 Alignment checks are advisory by default. Collision and stale-sensor
 protection still apply; navigation rejects reverse commands.
+
+YOLO overlay: person boxes, labels and poses are **red below 80% confidence**
+and **blue at or above 80%**. Colour is a confidence cue; blue detections can
+still be false positives. This does not change detection or game thresholds.

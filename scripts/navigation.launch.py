@@ -39,9 +39,13 @@ def launch_setup(context):
                      name='lifecycle_manager_slam', namespace=namespace,
                      parameters=[{'autostart': True, 'node_names': ['slam_toolbox']}],
                      output='screen')]
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from navigation_footprint import footprint_replacements
+    footprint = json.loads((config / 'navigation-footprint.json').read_text())
+    replacements = footprint_replacements(footprint)
     params = RewrittenYaml(
         source_file=ReplaceString(source_file=str(config / 'navigation.yaml'),
-                                  replacements={'<robot_namespace>': namespace}),
+                                  replacements={'<robot_namespace>': namespace, **replacements}),
         root_key=namespace, param_rewrites={}, convert_types=True)
     servers = [
         ('nav2_controller', 'controller_server'),

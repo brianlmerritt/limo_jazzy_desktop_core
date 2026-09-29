@@ -289,3 +289,57 @@ only `./scripts/bring_up_limo_base.sh`. The 15-second stream check received 216
 color images and 215 camera point clouds with distinct timestamps, alongside
 LiDAR and chassis telemetry. Startup USB control-transfer warnings remain;
 long-duration streaming stability was not established by this short check.
+
+## LIMO rear LiDAR blind sector
+
+The owner confirmed on 8 September 2026 that the standard LIMO chassis obstructs
+rearward LiDAR beams. The persistent rear gap is therefore an expected physical
+blind sector, not by itself evidence of serial/ROS packet loss. Its edges can
+help check scanner mounting relative to the chassis. They cannot determine the
+robot's heading in the room after it has been carried or turned.
+
+`base_link` uses +x forward and +y left. The configured `base_link -> laser_frame`
+yaw is pi radians, so the rearward robot direction lies near zero angle in the
+scanner frame. Do not rotate the static mounting TF to hide the gap, or treat
+absent returns as a reason to reverse the calibrated scan handedness.
+
+The normal LiDAR pipeline is:
+
+- `scan_raw`: unchanged upstream readings, including zero-valued empty bins.
+- `scan`: `limo_scan_adapter` replaces invalid ranges with NaN while retaining
+  all valid readings, beam indices, angles, timestamps and frame identifiers.
+- SLAM and navigation consume `scan`; the gap stays unobserved. No interpolation,
+  invented wall or maximum-range free-space ray is inserted behind the robot.
+
+The adapter's correction reproduced a fix for the 8 September map compression.
+Keep the current `invalid_range_is_inf: false` and navigation `inf_is_valid: false`
+settings. Changing the SDK setting alone does not cover the ROS wrapper's
+zero-initialized unfilled angle bins.
+
+ROS `laser_filters` also supports angular filters for excluding a calibrated
+sector. An explicit angular mask would be useful if chassis reflections produce
+false *valid* readings; it is not needed to normalize the existing empty bins.
+No exact mechanical edge angles have been calibrated here, so the implementation
+does not discard additional valid measurements using guessed bounds. The rear
+sector remains physically unsensed regardless of filtering. Existing movement
+policies and clearance settings are unchanged.
+
+References: [ROS laser_filters](https://index.ros.org/p/laser_filters/) and
+[Nav2 Jazzy obstacle-layer handling of infinite returns](https://docs.nav2.org/jazzy/configuration_and_development/configuration_guide/core_servers/costmap_2d/costmap_plugins/obstacle/).
+
+### Close-return rejection is already present
+
+The owner notes the supplied LIMO/YDLIDAR configuration already rejected close
+returns. The current running driver retains `range_min: 0.12` m. Inspection of
+`CYdLidar::doProcessSimple` confirms the SDK rejects out-of-range readings and
+encodes them as zero. The ROS wrapper leaves rejected/unfilled bins zero as well.
+The scan adapter fixes the downstream representation of those rejected readings
+for SLAM; it does not replace the existing near-range threshold or remove valid
+nearby obstacles. The 12 cm sensor validity limit and configured navigation body
+clearance are different settings measured from different references.
+
+The checked upstream AgileX ROS 2 parameter file also exposes `range_min` and
+`ignore_array`; its generic values are not evidence of the exact factory image
+shipped on this particular X2L robot. Existing calibrated platform settings were
+left unchanged during this comparison.
+Source: [AgileX ROS 2 YDLIDAR configuration](https://github.com/agilexrobotics/limo_ros2/blob/master/limo_bringup/param/ydlidar.yaml).

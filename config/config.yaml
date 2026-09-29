@@ -136,8 +136,8 @@ sources:
   - name: limo_ros2
     path: src/limo_ros2
     url: https://github.com/brianlmerritt/limo_ros2.git
-    branch: jazzy
-    revision: ec7e0445bafa30e0c07eda49b9d78a85ab38af02
+    branch: jazzy_plus
+    revision: df5bc68d5ee52b7c4a91af429b88ad79c1955a2c
     required: true
   - name: ydlidar_sdk
     path: drivers/ydlidar_sdk
@@ -173,5 +173,5 @@ sources:
     path: src/ros2_hide_and_seek
     url: https://github.com/brianlmerritt/ros2_hide_and_seek.git
     branch: main
-    revision: aaba012c6eaa0a51ec3edcaf3cd543d5c872529a
+    revision: 9a4cf0905fa52dfece6c7d7d7658b869fbb8d5a1
     required: true

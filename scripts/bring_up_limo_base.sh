@@ -32,8 +32,8 @@ if [[ -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash && "$ROOT" == /workspace ]]; t
   exit 2
 fi
 
-echo "[1/9] Checking configured sources and installing sensor access rules..."
-./scripts/setup.sh check-sources
+echo "[1/9] Validating configuration and installing sensor access rules..."
+./scripts/setup.sh validate
 ./scripts/configure-sensor-udev.sh install all
 
 echo "[2/9] Checking devices and configuring Compose..."
@@ -50,7 +50,7 @@ docker compose build dev
 echo "[5/9] Starting the development container..."
 docker compose up -d --force-recreate dev
 
-echo "[6/9] Building chassis and pinned exploration packages..."
+echo "[6/9] Building chassis and exploration packages from the current checkout..."
 docker compose exec -T dev \
   ./scripts/build.sh --packages-up-to limo_base explore_lite
 

@@ -58,12 +58,19 @@ exit 0
     def test_sensors_build_and_start_before_commanded_chassis(self):
         result, calls = self.run_bringup()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertLess(calls.index('setup.sh check-sources'), calls.index(' stop '))
+        self.assertLess(calls.index('setup.sh validate'), calls.index(' stop '))
         self.assertLess(calls.index('setup.sh build-drivers'), calls.index('setup.sh start-drivers'))
         self.assertLess(calls.index('setup.sh start-drivers'), calls.index('up -d --force-recreate limo-base'))
         self.assertNotIn('apply-sources', calls)
+        self.assertNotIn('check-sources', calls)
         self.assertNotIn('topic pub', calls)
         self.assertEqual(calls.count(' stop '), 1)
+
+    def test_git_audit_failure_does_not_block_development_bringup(self):
+        result, calls = self.run_bringup(FAIL_STEP='setup.sh check-sources')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('check-sources', calls)
+        self.assertIn('up -d --force-recreate limo-base', calls)
 
     def test_namespaced_chassis_readiness_uses_scoped_endpoints(self):
         result, calls = self.run_bringup(LIMO_ROS_NAMESPACE='limo1_explorer')
@@ -84,7 +91,7 @@ exit 0
         self.assertEqual(calls.count(' stop '), 1)
 
     def test_failed_preflight_leaves_existing_services_alone(self):
-        result, calls = self.run_bringup(FAIL_STEP='setup.sh check-sources')
+        result, calls = self.run_bringup(FAIL_STEP='setup.sh validate')
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn(' stop ', calls)
         self.assertNotIn('build-drivers', calls)

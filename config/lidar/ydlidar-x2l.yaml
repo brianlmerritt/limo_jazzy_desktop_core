@@ -22,5 +22,8 @@
     range_max: 8.0
     range_min: 0.12
     frequency: 6.0
+    # The LIMO chassis blocks rear beams. Keep raw missing readings visible;
+    # limo_scan_adapter converts invalid bins to NaN on scan, preserving scan_raw.
+    # Do not turn the blind sector into maximum-range free-space measurements.
     invalid_range_is_inf: false
     debug: false

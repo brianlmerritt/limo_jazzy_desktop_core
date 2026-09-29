@@ -1,4 +1,4 @@
-# Navigation alignment guard and 15 cm clearance
+# Navigation alignment guard and configurable body clearance
 
 Implemented 8 September 2026. No physical movement was performed to validate
 these changes; bench software tests are listed below.
@@ -143,28 +143,37 @@ coverage and turn clearance before confined manoeuvres.
 
 ## Clearance interpretation
 
-The user's 15 cm is interpreted as a margin **outside the body outline**, not a
-15 cm scanner range. The existing provisional footprint is 0.40 x 0.30 m.
+The owner measured the robot on 8 September 2026: **0.28 m long by 0.20 m
+wide**. `config/robot/navigation-footprint.json` is the single source of body
+length, width, clearance and footprint-centre offset in metres. The launch overlay
+translates these values into native parameters for both costmaps and the
+collision monitor; reusable ROS components do not read platform files.
 
-| Setting | Previous | New |
-|---|---:|---:|
-| Costmap footprint padding | 0.02 m | 0.15 m |
-| Planner inflation radius | 0.40 m | 0.35 m |
-| Collision stop-zone half length | 0.30 m | 0.35 m |
-| Collision stop-zone half width | 0.23 m | 0.30 m |
+The initial doorway setting is `clearance_m: 0.10`, giving a 0.48 x 0.40 m
+padded rectangle. Both costmaps use the measured unpadded body plus the same
+padding; the stop polygon uses the padded rectangle. Updating one clearance
+value changes all three. Centre offsets remain zero, preserving the existing
+assumption that base_link is at the footprint centre; adjust the offsets if a
+physical measurement shows otherwise. Length and width must be finite positive
+numbers, clearance finite and nonnegative, and offsets finite numbers.
 
-The stop polygon is therefore 0.70 x 0.60 m around base_link. This **increases**
-the old 8–10 cm immediate body margin, while reducing the outer planner cost
-field. Inflation radius is not a guaranteed wall clearance. Padding and the
-stop polygon establish the requested nominal body margin; corner geometry,
-cell resolution, stopping distance and footprint accuracy still matter.
+The 0.35 m inflation radius remains a soft preference for space around obstacles.
+It is not a 35 cm minimum body gap. Nav2 can use higher-cost traversable areas in
+narrow passages, while the padded footprint and stop polygon remain the hard
+clearance checks. This separates a preference for open space from the smaller
+configured minimum; it does not automatically change clearance while driving.
 
-A nominal corridor must exceed 0.60 m for a straight 0.30 m-wide robot with
-15 cm on both sides; do not assume exactly 0.60 m is usable. The current 5 cm
-map cells and unmeasured attachments need allowance. The 15 cm is not a proven
-safe stopping distance solely because LiDAR range measurements are accurate.
-Obstacle sensing still uses the configured collision monitor timeout and
-minimum-point rule. Glass and surfaces outside the laser plane remain limitations.
+A straight, centred passage needs more than the padded 0.40 m width. Turns,
+5 cm map cells, range uncertainty and attachments can require more space. The
+10 cm initial margin also avoids choosing a front clearance below the scanner's
+12 cm minimum range: the configured scanner is 10.3 cm forward of base_link,
+only 3.7 cm behind the measured body's front edge. Smaller margins are configurable
+but do not restore near-field or rear blind-sector coverage. Speed limits remain
+0.10 m/s and 0.25 rad/s. No additional movement gates were introduced.
+
+The footprint translation has focused tests for different margins, centre offsets,
+namespace substitution and invalid dimensions. These replace tests that asserted
+the old provisional 40 x 30 cm body and 15 cm margin.
 
 ## Validation and next physical check
 

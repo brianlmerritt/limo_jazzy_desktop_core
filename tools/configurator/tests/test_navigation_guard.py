@@ -65,16 +65,20 @@ class NavigationGuardTest(unittest.TestCase):
 
     def test_clearance_and_gate_route(self):
         import yaml
-        c=yaml.safe_load(Path('/workspace/config/robot/navigation.yaml').read_text())
+        import json
+        from navigation_footprint import render_navigation
+        root = Path('/workspace/config/robot')
+        c=yaml.safe_load(render_navigation((root/'navigation.yaml').read_text(),
+            json.loads((root/'navigation-footprint.json').read_text()), 'robot'))
         for name in ['global_costmap','local_costmap']:
             p=c[name][name]['ros__parameters']
-            self.assertEqual(p['footprint_padding'],.15)
+            self.assertEqual(p['footprint_padding'],.10)
             self.assertEqual(p['inflation_layer']['inflation_radius'],.35)
         p=c['collision_monitor']['ros__parameters']
         self.assertEqual(p['cmd_vel_in_topic'],'cmd_vel_guarded')
         self.assertEqual(p['cmd_vel_out_topic'],'cmd_vel')
         import json
-        self.assertEqual(json.loads(p['StopZone']['points']),[[.35,.30],[.35,-.30],[-.35,-.30],[-.35,.30]])
+        self.assertEqual(json.loads(p['StopZone']['points']),[[.24,.20],[.24,-.20],[-.24,-.20],[-.24,.20]])
         self.assertEqual(c['behavior_server']['ros__parameters']['behavior_plugins'], ['wait'])
         self.assertEqual(c['velocity_smoother']['ros__parameters']['min_velocity'][0],0)
 

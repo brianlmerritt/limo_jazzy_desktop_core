@@ -1,5 +1,5 @@
-# 15 cm body clearance for the four-wheel differential LIMO.
-# Dimensions are provisional; verify the physical envelope before exploration.
+# Body and hard clearance come from navigation-footprint.json.
+# Framework launch renders these placeholders into native Nav2 parameters.
 bt_navigator:
   ros__parameters:
     global_frame: map
@@ -60,8 +60,8 @@ local_costmap:
       width: 3
       height: 3
       resolution: 0.05
-      footprint: "[[0.20, 0.15], [0.20, -0.15], [-0.20, -0.15], [-0.20, 0.15]]"
-      footprint_padding: 0.15
+      footprint: "<robot_footprint>"
+      footprint_padding: <robot_clearance>
       transform_tolerance: 0.3
       plugins: [obstacle_layer, inflation_layer]
       obstacle_layer:
@@ -90,8 +90,8 @@ global_costmap:
       robot_base_frame: base_link
       resolution: 0.05
       track_unknown_space: true
-      footprint: "[[0.20, 0.15], [0.20, -0.15], [-0.20, -0.15], [-0.20, 0.15]]"
-      footprint_padding: 0.15
+      footprint: "<robot_footprint>"
+      footprint_padding: <robot_clearance>
       transform_tolerance: 0.3
       plugins: [static_layer, obstacle_layer, inflation_layer]
       static_layer:
@@ -180,7 +180,7 @@ collision_monitor:
     polygons: [StopZone]
     StopZone:
       type: polygon
-      points: "[[0.35, 0.30], [0.35, -0.30], [-0.35, -0.30], [-0.35, 0.30]]"
+      points: "<robot_stop_zone>"
       action_type: stop
       min_points: 2
       visualize: true

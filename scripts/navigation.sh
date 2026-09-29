@@ -27,7 +27,6 @@ case "${1:-}" in
     ;;
   explore)
     "${compose[@]}" --profile game stop hide-and-seek
-    "$ROOT/scripts/setup.sh" check-sources
     "${compose[@]}" exec -T dev ./scripts/check-navigation.sh
     echo "Starting autonomous exploration now."
     "${compose[@]}" --profile exploration up -d exploration
@@ -38,6 +37,13 @@ case "${1:-}" in
     "${compose[@]}" exec -T dev timeout 8 ./scripts/ros2.sh topic pub --wait-matching-subscriptions 0 --times 10 --rate 10 \
       "$ROBOT_PREFIX/cmd_vel" geometry_msgs/msg/Twist '{}'
     ;;
+  reset)
+    [[ $# == 1 ]] || { echo "Usage: $0 reset" >&2; exit 2; }
+    "$0" stop
+    "${compose[@]}" --profile navigation stop mapping
+    "$0" mapping
+    echo "Fresh live map started. Navigation, exploration and game remain stopped; saved maps and chassis odometry are unchanged."
+    ;;
   save-map)
     [[ $# == 2 && "$2" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "Usage: $0 save-map NAME" >&2; exit 2; }
     mkdir -p "$ROOT/.deps/maps"
@@ -45,5 +51,5 @@ case "${1:-}" in
       -f "/workspace/.deps/maps/$2" --ros-args -r "__ns:=/$LIMO_ROS_NAMESPACE" \
       -p map_subscribe_transient_local:=true -p save_map_timeout:=10.0
     ;;
-  *) echo "Usage: $0 {mapping|start|explore|stop|save-map NAME}" >&2; exit 2 ;;
+  *) echo "Usage: $0 {mapping|start|explore|stop|reset|save-map NAME}" >&2; exit 2 ;;
 esac

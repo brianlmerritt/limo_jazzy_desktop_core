@@ -16,6 +16,22 @@ This repository owns the reproducible development environment and platform confi
 
 Put Python, ROS 2, ROS packages, build tools, and application dependencies in Docker. Do not install them on Ubuntu 24.04 merely for convenience. Only hardware access, Docker/JetPack support, and unavoidable kernel/device-driver changes belong on the host. Every host modification must have an idempotent script where feasible and accompanying documentation describing purpose, commands, affected files, verification, and rollback. Do not assume stable `/dev/ttyUSB*` names; capture identifiers and define persistent rules under repository configuration before relying on them.
 
+## Owner Approval for New Restrictions
+
+Design decisions that add security constraints, permission requirements or
+operational restrictions require the owner's explicit approval before
+implementation. Do not introduce them merely because they seem prudent.
+Examples include new startup gates, Git revision or clean-working-tree
+requirements, lockouts, mandatory confirmations, and restrictions on normal
+development workflows.
+
+Before proposing such a restriction, explain the concrete problem, the intended
+rule, its effect on the owner's workflow, and any less restrictive alternative.
+Ask for approval and continue independent authorized work while awaiting it.
+Existing user authorization remains valid: do not ask again for a restriction
+or change the owner has already requested or approved. Ordinary fixes within
+agreed behavior do not need a new approval step.
+
 ## Component Boundaries and Configuration
 
 Keep repositories and reusable components under `src/` and `drivers/` independently buildable, runnable, configurable, testable, and documented. They must not read this framework's root `config/`, Compose files, `.env`, or helper scripts directly. A component owns its public runtime contract and safe standalone defaults; the outer framework translates platform-specific configuration into that contract and validates the translation.
@@ -27,6 +43,14 @@ Keep hardware discovery, host paths, udev rules, secrets, and deployment topolog
 For an externally maintained repository that should not be changed, prefer a sibling adapter package or launch/configuration overlay. If a task appears to require a component to depend on this framework, or the appropriate boundary is unclear, stop implementation and discuss the interface and tradeoffs first. Record an accepted exception under `docs/decisions/` before introducing the dependency.
 
 ## Development Commands
+
+This is a development robot. Routine bringup, driver builds, exploration and
+shutdown must work with uncommitted edits, local commits, branch changes and
+stale recorded source pins. Build the current working tree; do not invoke Git
+revision/gitlink/cleanliness audits from runtime paths. Keep strict source audits
+and source synchronization as explicit maintenance operations. Build and runtime
+readiness checks still apply. Never reset or discard local work to make startup
+pass.
 
 - Keep `ROS2_INSTRUCTIONS.md` synchronized whenever container startup, build,
   passive-check, or ROS bringup commands change.

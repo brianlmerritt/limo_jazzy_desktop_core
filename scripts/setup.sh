@@ -69,7 +69,6 @@ case "$COMMAND" in
     exit 0
     ;;
   build-drivers)
-    run_config check-sources --workspace /workspace
     service="$(run_config driver-service)"
     build_plan="$(mktemp)"
     trap 'rm -f "$build_plan"' EXIT

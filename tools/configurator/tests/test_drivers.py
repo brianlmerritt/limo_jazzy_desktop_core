@@ -1,5 +1,6 @@
 from copy import deepcopy
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 import unittest
@@ -107,14 +108,16 @@ class SelectionTest(unittest.TestCase):
         self.assertIn('REALSENSE_USB_SERIAL=usb123', output)
         self.assertIn('REALSENSE_SERIAL=sdk456', output)
 
-    def test_build_follows_source_paths_and_pins(self):
+    def test_build_follows_source_paths_without_git_checks(self):
         data = config()
         original = build_script(data)
         data['sources'][1]['path'] = 'drivers/new_sdk'
         data['sources'][1]['revision'] = 'a' * 40
         updated = build_script(data)
         self.assertIn('-S drivers/new_sdk', updated)
-        self.assertIn('a' * 40, updated)
+        self.assertNotIn('a' * 40, updated)
+        self.assertNotIn('git -C', updated)
+        self.assertNotIn('/.git', updated)
         self.assertNotEqual(original, updated)
         self.assertIn('-DFORCE_RSUSB_BACKEND=ON', updated)
         self.assertLess(updated.index('colcon --log-base'), updated.index('mv "$driver_env_tmp"'))
@@ -153,13 +156,43 @@ class SelectionTest(unittest.TestCase):
             result = subprocess.run(['bash', '-n'], input=script, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_fingerprint_changes_for_pins_but_not_runtime_parameters(self):
+    def test_git_metadata_does_not_change_runtime_build_identity(self):
         data = config()
         original = build_id(data)
         data['devices']['ydlidar_x2l']['baud_rate'] = 128000
         self.assertEqual(build_id(data), original)
-        data['sources'][1]['revision'] = 'a' * 40
-        self.assertNotEqual(build_id(data), original)
+        script = build_script(data)
+        for source in data['sources']:
+            source.update(revision='a' * 40, branch='local-work', url='https://example.com/fork.git')
+        self.assertEqual(build_id(data), original)
+        self.assertEqual(build_script(data), script)
+
+    def test_driver_build_accepts_local_sources_without_git_metadata(self):
+        data = config()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for source in selected_sources(data):
+                (root / source['path']).mkdir(parents=True)
+                (root / source['path'] / 'local-edit.txt').write_text('uncommitted work')
+            binary = root / 'bin'
+            binary.mkdir()
+            log = root / 'commands'
+            for name in ('git', 'cmake', 'colcon'):
+                executable = binary / name
+                executable.write_text('#!/bin/bash\necho "' + name + ' $*" >> "$TEST_LOG"\n' +
+                                      ('exit 99\n' if name == 'git' else 'exit 0\n'))
+                executable.chmod(0o755)
+            underlay = root / 'setup.bash'
+            underlay.write_text('')
+            script = build_script(data).replace('/workspace', str(root)).replace(
+                '/opt/ros/jazzy/setup.bash', str(underlay))
+            result = subprocess.run(['bash'], input=script, text=True, capture_output=True,
+                                    env=dict(os.environ, PATH=str(binary)+':'+os.environ['PATH'],
+                                             TEST_LOG=str(log)))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn('git ', log.read_text())
+            self.assertIn('cmake --build', log.read_text())
+            self.assertTrue((root / '.deps/driver-build.sha256').is_file())
 
     def test_sdk_link_time_search_path_precedes_wrapper_build(self):
         script = build_script(config())

@@ -1,6 +1,6 @@
 # LIMO ROS 2 Roadmap
 
-Updated 2026-09-05. **The chassis, YDLIDAR, and RealSense migration to Jazzy is complete.**
+Updated 2026-09-08. **The chassis, YDLIDAR, and RealSense migration to Jazzy is complete.**
 Normal startup remains `./scripts/bring_up_limo_base.sh`; it manages container
 builds/restarts and starts the chassis in commanded mode with enabled sensors.
 No intermediate migration commands are required for normal operation.
@@ -92,3 +92,28 @@ against our robot during this review. Links pin the reviewed versions:
 **Now:** the hardware stack needs no further Jazzy migration steps. **Next:**
 prioritize stop behavior, TF/calibration, and simulation foundations; mapping and
 navigation build on those results.
+
+## Floor-test checkpoint — 8 September 2026
+
+- [x] Owner reports repeated successful Nav2 goals, entering and moving around the
+  bedroom, returning toward the front door, and navigating back toward the office.
+  This is supervised floor validation, not general autonomy or stair validation.
+- [x] Correct the LiDAR invalid-zero representation for SLAM, preserving raw scans.
+- [x] Use owner-measured 28 x 20 cm body dimensions and configurable 10 cm body
+  clearance consistently in both costmaps and collision monitoring.
+- [x] Owner confirms YOLO person detection and useful pose-estimation output.
+- [ ] Investigate owner-observed mirror corruption of the map. Compare raw range
+  and depth returns at the mirror; use a covered-mirror comparison or a surveyed
+  exclusion region rather than assuming a reflected apparent opening is free.
+  The owner elected not to save this session's map.
+- [ ] Stair/drop-off work: first measure the D435i mounting height, tilt and visible
+  floor coverage in a stationary test. Current person-pose output is not a cliff
+  detector. No ground-support detector or cliff-to-command-stop integration is
+  implemented. Follow the staged design in HIDE_AND_SEEK.md, Phase 5; no autonomous
+  approach to an unprotected stair edge for initial validation.
+- [ ] Implement and replay-test ground-support detection and its stop integration
+  before protected mock-edge motion trials. Keep this distinct from LiDAR
+  obstacle clearance and semantic person recognition.
+
+The owner shut down all robot containers at this checkpoint. Readiness review
+confirmed none running; they have not been restarted for stair testing.

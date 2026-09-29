@@ -449,6 +449,13 @@ has not launched exploration or moved the robot.
   Stale images pause exploration, and timeout/no-frontiers produce explicit states.
 - [x] Integrate the owner-created `src/ros2_hide_and_seek` submodule containing
   limo_vision and limo_hide_and_seek. Package additions remain uncommitted.
+- [ ] Separate the YOLO vision code from exploration and hide-and-seek
+  orchestration so each component can be built, launched, configured, tested,
+  and documented independently. Ordinary exploration must run without YOLO;
+  YOLO must run from ROS camera feeds without an explorer or game running.
+  Higher-level behaviors may declare a dependency on these components through
+  documented ROS interfaces. Verify standalone launches and the combined
+  hide-and-seek launch after the separation.
 
 This prototype searches frontiers while mapping. It does not yet inspect a set
 of viewpoints on a fully mapped floor, recognize individual children, infer
